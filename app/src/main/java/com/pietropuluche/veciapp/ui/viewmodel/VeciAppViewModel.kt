@@ -165,7 +165,14 @@ class VeciAppViewModel(
         }
     }
 
-    fun createEmergency(type: String, latitude: Double?, longitude: Double?, address: String, notes: String) {
+    fun createEmergency(
+        type: String,
+        latitude: Double?,
+        longitude: Double?,
+        address: String,
+        notes: String,
+        evidenceImageBase64: String?
+    ) {
         viewModelScope.launch {
             repository.createEmergency(
                 CreateEmergencyRequest(
@@ -173,7 +180,8 @@ class VeciAppViewModel(
                     latitude = latitude,
                     longitude = longitude,
                     addressReference = address.ifBlank { null },
-                    notes = notes.ifBlank { null }
+                    notes = notes.ifBlank { null },
+                    evidenceImageBase64 = evidenceImageBase64?.ifBlank { null }
                 )
             ).onSuccess {
                 _uiState.value = _uiState.value.copy(
@@ -195,7 +203,8 @@ class VeciAppViewModel(
         description: String,
         addressReference: String,
         latitude: Double?,
-        longitude: Double?
+        longitude: Double?,
+        evidenceImageBase64: String?
     ) {
         viewModelScope.launch {
             repository.createReport(
@@ -205,7 +214,8 @@ class VeciAppViewModel(
                     description = description.trim(),
                     addressReference = addressReference.ifBlank { null },
                     latitude = latitude,
-                    longitude = longitude
+                    longitude = longitude,
+                    evidenceImageBase64 = evidenceImageBase64?.ifBlank { null }
                 )
             ).onSuccess {
                 _uiState.value = _uiState.value.copy(

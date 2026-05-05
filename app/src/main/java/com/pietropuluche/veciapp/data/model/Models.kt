@@ -83,7 +83,8 @@ data class CreateEmergencyRequest(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val addressReference: String? = null,
-    val notes: String? = null
+    val notes: String? = null,
+    val evidenceImageBase64: String? = null
 )
 
 data class EmergencyResponse(
@@ -95,6 +96,7 @@ data class EmergencyResponse(
     val longitude: Double? = null,
     val addressReference: String? = null,
     val notes: String? = null,
+    val evidenceImageBase64: String? = null,
     val assignedAuthorityName: String? = null,
     val assignedDistanceKm: Double? = null,
     val estimatedResponseMinutes: Int? = null,
@@ -107,7 +109,8 @@ data class CreateIncidentReportRequest(
     val description: String,
     val addressReference: String? = null,
     val latitude: Double? = null,
-    val longitude: Double? = null
+    val longitude: Double? = null,
+    val evidenceImageBase64: String? = null
 )
 
 data class IncidentReportResponse(
@@ -120,6 +123,7 @@ data class IncidentReportResponse(
     val addressReference: String? = null,
     val latitude: Double? = null,
     val longitude: Double? = null,
+    val evidenceImageBase64: String? = null,
     val createdAt: String
 )
 

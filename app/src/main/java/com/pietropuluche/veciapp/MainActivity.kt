@@ -160,8 +160,8 @@ class MainActivity : ComponentActivity() {
                             EmergencyScreen(
                                 successMessage = appState.successMessage,
                                 errorMessage = appState.errorMessage,
-                                onSubmit = { type, lat, lon, address, notes ->
-                                    veciAppViewModel.createEmergency(type, lat, lon, address, notes)
+                                onSubmit = { type, lat, lon, address, notes, evidenceImageBase64 ->
+                                    veciAppViewModel.createEmergency(type, lat, lon, address, notes, evidenceImageBase64)
                                 }
                             )
                         }
@@ -170,8 +170,8 @@ class MainActivity : ComponentActivity() {
                                 categories = appState.categories,
                                 successMessage = appState.successMessage,
                                 errorMessage = appState.errorMessage,
-                                onSubmit = { category, title, description, address, lat, lon ->
-                                    veciAppViewModel.createReport(category, title, description, address, lat, lon)
+                                onSubmit = { category, title, description, address, lat, lon, evidenceImageBase64 ->
+                                    veciAppViewModel.createReport(category, title, description, address, lat, lon, evidenceImageBase64)
                                 }
                             )
                         }
