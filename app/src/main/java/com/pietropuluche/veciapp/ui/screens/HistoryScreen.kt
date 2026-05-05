@@ -1,10 +1,12 @@
 package com.pietropuluche.veciapp.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,9 +31,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pietropuluche.veciapp.data.model.HistoryDetailUi
@@ -49,6 +56,8 @@ import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 private val SpanishColombiaLocale: Locale = Locale.forLanguageTag("es-CO")
 
@@ -155,20 +164,34 @@ private fun HistoryDetailScreen(
     detail: HistoryDetailUi,
     onClose: () -> Unit
 ) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        item { Spacer(modifier = Modifier.height(4.dp)) }
-        item {
-            HistoryHeader(title = "Detalle", onClose = onClose)
+    var expandedImageData by rememberSaveable { mutableStateOf<String?>(null) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            item { Spacer(modifier = Modifier.height(4.dp)) }
+            item {
+                HistoryHeader(title = "Detalle", onClose = onClose)
+            }
+            item {
+                HistoryDetailCard(
+                    detail = detail,
+                    onExpandImage = { expandedImageData = it }
+                )
+            }
+            item { Spacer(modifier = Modifier.height(14.dp)) }
         }
-        item {
-            HistoryDetailCard(detail = detail)
+
+        expandedImageData?.let { imageData ->
+            ExpandedHistoryImageDialog(
+                imageData = imageData,
+                onClose = { expandedImageData = null }
+            )
         }
-        item { Spacer(modifier = Modifier.height(14.dp)) }
     }
 }
 
@@ -272,7 +295,10 @@ private fun HistoryListCard(
 }
 
 @Composable
-private fun HistoryDetailCard(detail: HistoryDetailUi) {
+private fun HistoryDetailCard(
+    detail: HistoryDetailUi,
+    onExpandImage: (String) -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
@@ -356,12 +382,18 @@ private fun HistoryDetailCard(detail: HistoryDetailUi) {
                             color = TextPrimary,
                             fontWeight = FontWeight.SemiBold
                         )
+                        Text(
+                            text = "Toca la imagen para verla completa.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
                         Base64DataUrlImage(
                             dataUrl = imageData,
                             contentDescription = "Imagen del historial",
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(220.dp)
+                                .clickable { onExpandImage(imageData) }
                         )
                     }
                 }
@@ -375,6 +407,47 @@ private fun HistoryDetailCard(detail: HistoryDetailUi) {
                     text = "Este registro no tiene mas detalles complementarios.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExpandedHistoryImageDialog(
+    imageData: String,
+    onClose: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.92f))
+                .clickable(onClick = onClose),
+            contentAlignment = Alignment.Center
+        ) {
+            Base64DataUrlImage(
+                dataUrl = imageData,
+                contentDescription = "Imagen ampliada del historial",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp),
+                contentScale = ContentScale.Fit
+            )
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(16.dp)
+                    .background(Color.White.copy(alpha = 0.14f), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = "Cerrar imagen",
+                    tint = Color.White
                 )
             }
         }
