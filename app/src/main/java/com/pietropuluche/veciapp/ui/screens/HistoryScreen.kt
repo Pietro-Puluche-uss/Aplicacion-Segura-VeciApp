@@ -23,7 +23,11 @@ fun HistoryScreen(history: List<HistoryItemResponse>) {
                     Text(item.title, style = MaterialTheme.typography.titleMedium)
                     Text(item.subtitle, color = TextSecondary)
                     Text(item.status, color = MaterialTheme.colorScheme.primary)
-                    Text(item.location, color = TextSecondary, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        item.location?.ifBlank { "Sin referencia de ubicacion" } ?: "Sin referencia de ubicacion",
+                        color = TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                     Text(formatDateTime(item.createdAt), color = TextSecondary, style = MaterialTheme.typography.bodySmall)
                 }
             }

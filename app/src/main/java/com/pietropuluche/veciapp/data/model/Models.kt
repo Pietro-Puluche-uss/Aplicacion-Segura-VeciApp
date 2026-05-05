@@ -129,8 +129,8 @@ data class HistoryItemResponse(
     val title: String,
     val subtitle: String,
     val status: String,
-    val location: String,
-    val createdAt: String
+    val location: String? = null,
+    val createdAt: String? = null
 )
 
 data class SubscriptionPlanResponse(
