@@ -10,7 +10,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -33,7 +32,6 @@ import com.pietropuluche.veciapp.ui.screens.SubscriptionScreen
 import com.pietropuluche.veciapp.ui.theme.VeciAppTheme
 import com.pietropuluche.veciapp.ui.viewmodel.AuthViewModel
 import com.pietropuluche.veciapp.ui.viewmodel.VeciAppViewModel
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +50,6 @@ class MainActivity : ComponentActivity() {
                 val appState by veciAppViewModel.uiState.collectAsState()
                 val backStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = backStackEntry?.destination?.route
-                val scope = rememberCoroutineScope()
 
                 LaunchedEffect(authState.isLoggedIn) {
                     if (authState.isLoggedIn) {
@@ -60,14 +57,23 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                LaunchedEffect(authState.errorMessage, authState.infoMessage, appState.errorMessage, appState.successMessage) {
+                LaunchedEffect(currentRoute, authState.errorMessage, authState.infoMessage, appState.errorMessage, appState.successMessage) {
                     val message = authState.errorMessage.ifBlank {
                         authState.infoMessage.ifBlank {
                             appState.errorMessage.ifBlank { appState.successMessage }
                         }
                     }
                     if (message.isNotBlank()) {
-                        scope.launch { snackbarHostState.showSnackbar(message) }
+                        if (
+                            currentRoute == Route.Emergency.value &&
+                            appState.successMessage == "Alerta enviada correctamente"
+                        ) {
+                            navController.navigate(Route.Home.value) {
+                                popUpTo(Route.Home.value) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                        snackbarHostState.showSnackbar(message)
                         authViewModel.clearMessage()
                         veciAppViewModel.clearMessages()
                     }

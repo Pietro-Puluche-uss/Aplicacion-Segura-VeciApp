@@ -48,9 +48,14 @@ class VeciAppViewModel(
     private val _uiState = MutableStateFlow(VeciAppUiState())
     val uiState: StateFlow<VeciAppUiState> = _uiState.asStateFlow()
 
-    fun bootstrap() {
+    fun bootstrap(clearFeedback: Boolean = true) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = "", successMessage = "")
+            val currentState = _uiState.value
+            _uiState.value = currentState.copy(
+                isLoading = true,
+                errorMessage = if (clearFeedback) "" else currentState.errorMessage,
+                successMessage = if (clearFeedback) "" else currentState.successMessage
+            )
             val profileDeferred = async { repository.getProfile() }
             val dashboardDeferred = async { repository.getDashboard() }
             val categoriesDeferred = async { repository.getReportCategories() }
@@ -177,7 +182,7 @@ class VeciAppViewModel(
                     successMessage = "Alerta enviada correctamente",
                     errorMessage = ""
                 )
-                bootstrap()
+                bootstrap(clearFeedback = false)
             }.onFailure { error ->
                 showError(error.message.orEmpty())
             }
@@ -208,7 +213,7 @@ class VeciAppViewModel(
                     successMessage = "Reporte enviado correctamente",
                     errorMessage = ""
                 )
-                bootstrap()
+                bootstrap(clearFeedback = false)
             }.onFailure { error ->
                 showError(error.message.orEmpty())
             }
@@ -220,7 +225,7 @@ class VeciAppViewModel(
             repository.updateSubscription(UpdateSubscriptionRequest(plan))
                 .onSuccess {
                     _uiState.value = _uiState.value.copy(subscription = it, successMessage = "Plan actualizado", errorMessage = "")
-                    bootstrap()
+                    bootstrap(clearFeedback = false)
                 }.onFailure { error ->
                     showError(error.message.orEmpty())
                 }
