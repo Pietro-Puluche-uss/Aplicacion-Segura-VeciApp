@@ -90,6 +90,7 @@ class MainActivity : ComponentActivity() {
                     snackbarHostState = snackbarHostState,
                     showBottomBar = currentRoute in listOf(
                         Route.Home.value,
+                        Route.Emergency.value,
                         Route.History.value,
                         Route.Profile.value,
                         Route.Family.value
@@ -162,6 +163,13 @@ class MainActivity : ComponentActivity() {
                                 errorMessage = appState.errorMessage,
                                 onSubmit = { type, lat, lon, address, notes, evidenceImageBase64 ->
                                     veciAppViewModel.createEmergency(type, lat, lon, address, notes, evidenceImageBase64)
+                                },
+                                onClose = {
+                                    if (!navController.popBackStack()) {
+                                        navController.navigate(Route.Home.value) {
+                                            launchSingleTop = true
+                                        }
+                                    }
                                 }
                             )
                         }

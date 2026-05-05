@@ -158,3 +158,22 @@ fun ReportScreen(
         }
     }
 }
+
+@Composable
+fun OptionSelector(
+    label: String,
+    options: List<UiOption>,
+    selectedId: String,
+    onSelect: (String) -> Unit
+) {
+    Text(label)
+    options.forEach { option ->
+        Button(
+            onClick = { onSelect(option.id) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            val prefix = if (option.id == selectedId) "Seleccionado: " else ""
+            Text(prefix + option.label)
+        }
+    }
+}
