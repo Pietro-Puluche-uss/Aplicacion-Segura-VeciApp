@@ -149,6 +149,12 @@ class MainActivity : ComponentActivity() {
                                 uiState = authState,
                                 onRegister = { firstName, lastName, email, password, phone, document ->
                                     authViewModel.register(firstName, lastName, email, password, phone, document)
+                                },
+                                onGoLogin = {
+                                    navController.navigate(Route.Login.value) {
+                                        popUpTo(Route.Register.value) { inclusive = true }
+                                        launchSingleTop = true
+                                    }
                                 }
                             )
                             if (authState.isLoggedIn) {
