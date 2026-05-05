@@ -229,19 +229,23 @@ class MainActivity : ComponentActivity() {
                         composable(Route.Profile.value) {
                             ProfileScreen(
                                 profile = appState.profile,
+                                familyPreview = appState.familyMap,
                                 successMessage = appState.successMessage,
                                 errorMessage = appState.errorMessage,
-                                onSaveProfile = { firstName, lastName, phone, document, photoUrl ->
-                                    veciAppViewModel.updateProfile(firstName, lastName, phone, document, photoUrl)
-                                },
                                 onUpdateLocation = { lat, lon, district, city ->
                                     veciAppViewModel.updateLocation(lat, lon, district, city)
                                 },
                                 onOpenSubscription = { navController.navigate(Route.Subscription.value) },
+                                onOpenFamily = { navController.navigate(Route.Family.value) },
                                 onLogout = {
                                     authViewModel.logout()
                                     navController.navigate(Route.Login.value) {
                                         popUpTo(Route.Home.value) { inclusive = true }
+                                    }
+                                },
+                                onClose = {
+                                    navController.navigate(Route.Home.value) {
+                                        launchSingleTop = true
                                     }
                                 }
                             )
