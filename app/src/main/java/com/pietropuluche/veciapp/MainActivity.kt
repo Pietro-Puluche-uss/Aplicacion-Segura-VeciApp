@@ -104,6 +104,9 @@ class MainActivity : ComponentActivity() {
                             if (currentRoute == Route.Emergency.value) {
                                 veciAppViewModel.clearEmergencyConfirmation()
                             }
+                            if (currentRoute == Route.History.value) {
+                                veciAppViewModel.closeHistoryDetail()
+                            }
                             navController.navigate(route) {
                                 launchSingleTop = true
                             }
@@ -208,7 +211,19 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(Route.History.value) {
-                            HistoryScreen(history = appState.history)
+                            HistoryScreen(
+                                history = appState.history,
+                                selectedDetail = appState.selectedHistoryDetail,
+                                isDetailLoading = appState.isHistoryDetailLoading,
+                                onSelectItem = { veciAppViewModel.loadHistoryDetail(it) },
+                                onClose = {
+                                    veciAppViewModel.closeHistoryDetail()
+                                    navController.navigate(Route.Home.value) {
+                                        launchSingleTop = true
+                                    }
+                                },
+                                onCloseDetail = { veciAppViewModel.closeHistoryDetail() }
+                            )
                         }
                         composable(Route.Profile.value) {
                             ProfileScreen(

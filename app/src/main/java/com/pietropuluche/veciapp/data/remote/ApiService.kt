@@ -62,11 +62,17 @@ interface ApiService {
     @GET("api/emergencies/mine")
     suspend fun getMyEmergencies(): List<EmergencyResponse>
 
+    @GET("api/emergencies/mine/{id}")
+    suspend fun getMyEmergencyById(@Path("id") id: Long): EmergencyResponse
+
     @POST("api/reports")
     suspend fun createReport(@Body request: CreateIncidentReportRequest): IncidentReportResponse
 
     @GET("api/reports/mine")
     suspend fun getMyReports(): List<IncidentReportResponse>
+
+    @GET("api/reports/mine/{id}")
+    suspend fun getMyReportById(@Path("id") id: Long): IncidentReportResponse
 
     @GET("api/history/mine")
     suspend fun getMyHistory(): List<HistoryItemResponse>

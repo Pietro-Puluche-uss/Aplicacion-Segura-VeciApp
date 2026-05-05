@@ -10,6 +10,7 @@ import com.pietropuluche.veciapp.data.model.FamilyMapMemberResponse
 import com.pietropuluche.veciapp.data.model.FamilyMemberRequest
 import com.pietropuluche.veciapp.data.model.FamilyMemberResponse
 import com.pietropuluche.veciapp.data.model.HistoryItemResponse
+import com.pietropuluche.veciapp.data.model.HistoryDetailUi
 import com.pietropuluche.veciapp.data.model.IncidentReportResponse
 import com.pietropuluche.veciapp.data.model.ProfileResponse
 import com.pietropuluche.veciapp.data.model.ReportCategoryResponse
@@ -33,6 +34,8 @@ data class VeciAppUiState(
     val reports: List<IncidentReportResponse> = emptyList(),
     val emergencies: List<EmergencyResponse> = emptyList(),
     val history: List<HistoryItemResponse> = emptyList(),
+    val selectedHistoryDetail: HistoryDetailUi? = null,
+    val isHistoryDetailLoading: Boolean = false,
     val plans: List<SubscriptionPlanResponse> = emptyList(),
     val subscription: UserSubscriptionResponse? = null,
     val familyMembers: List<FamilyMemberResponse> = emptyList(),
@@ -48,6 +51,7 @@ class VeciAppViewModel(
 
     private val _uiState = MutableStateFlow(VeciAppUiState())
     val uiState: StateFlow<VeciAppUiState> = _uiState.asStateFlow()
+    private var historyDetailRequestToken: Long = 0
 
     fun bootstrap(clearFeedback: Boolean = true) {
         viewModelScope.launch {
@@ -89,6 +93,8 @@ class VeciAppViewModel(
                 history = historyResult.getOrElse { currentState.history },
                 reports = reportsResult.getOrElse { currentState.reports },
                 emergencies = emergenciesResult.getOrElse { currentState.emergencies },
+                selectedHistoryDetail = currentState.selectedHistoryDetail,
+                isHistoryDetailLoading = currentState.isHistoryDetailLoading,
                 familyMembers = membersResult.getOrElse { currentState.familyMembers },
                 familyMap = familyMapResult.getOrElse { currentState.familyMap },
                 pendingEmergencyConfirmation = currentState.pendingEmergencyConfirmation,
@@ -116,6 +122,98 @@ class VeciAppViewModel(
                 showError(error.message.orEmpty())
             }
         }
+    }
+
+    fun loadHistoryDetail(item: HistoryItemResponse) {
+        viewModelScope.launch {
+            val requestToken = ++historyDetailRequestToken
+            _uiState.value = _uiState.value.copy(
+                isHistoryDetailLoading = true,
+                selectedHistoryDetail = null
+            )
+            when (item.itemType.lowercase()) {
+                "emergency" -> {
+                    repository.getMyEmergencyById(item.itemId)
+                        .onSuccess { emergency ->
+                            if (requestToken == historyDetailRequestToken) {
+                                _uiState.value = _uiState.value.copy(
+                                    isHistoryDetailLoading = false,
+                                    selectedHistoryDetail = HistoryDetailUi(
+                                        itemType = item.itemType,
+                                        itemId = emergency.id,
+                                        title = emergency.typeLabel.ifBlank { "Emergencia" },
+                                        status = emergency.status,
+                                        categoryOrTypeLabel = emergency.typeLabel,
+                                        subtitle = emergency.assignedAuthorityName,
+                                        description = emergency.notes,
+                                        location = resolveLocation(
+                                            addressReference = emergency.addressReference,
+                                            latitude = emergency.latitude,
+                                            longitude = emergency.longitude
+                                        ),
+                                        latitude = emergency.latitude,
+                                        longitude = emergency.longitude,
+                                        evidenceImageBase64 = emergency.evidenceImageBase64,
+                                        assignedAuthorityName = emergency.assignedAuthorityName,
+                                        assignedDistanceKm = emergency.assignedDistanceKm,
+                                        estimatedResponseMinutes = emergency.estimatedResponseMinutes,
+                                        createdAt = emergency.createdAt
+                                    )
+                                )
+                            }
+                        }
+                        .onFailure { error ->
+                            if (requestToken == historyDetailRequestToken) {
+                                _uiState.value = _uiState.value.copy(isHistoryDetailLoading = false)
+                                showError(error.message.orEmpty())
+                            }
+                        }
+                }
+
+                else -> {
+                    repository.getMyReportById(item.itemId)
+                        .onSuccess { report ->
+                            if (requestToken == historyDetailRequestToken) {
+                                _uiState.value = _uiState.value.copy(
+                                    isHistoryDetailLoading = false,
+                                    selectedHistoryDetail = HistoryDetailUi(
+                                        itemType = item.itemType,
+                                        itemId = report.id,
+                                        title = report.title.ifBlank { "Reporte" },
+                                        status = report.status,
+                                        categoryOrTypeLabel = report.categoryLabel,
+                                        subtitle = report.categoryLabel,
+                                        description = report.description,
+                                        location = resolveLocation(
+                                            addressReference = report.addressReference,
+                                            latitude = report.latitude,
+                                            longitude = report.longitude
+                                        ),
+                                        latitude = report.latitude,
+                                        longitude = report.longitude,
+                                        evidenceImageBase64 = report.evidenceImageBase64,
+                                        createdAt = report.createdAt
+                                    )
+                                )
+                            }
+                        }
+                        .onFailure { error ->
+                            if (requestToken == historyDetailRequestToken) {
+                                _uiState.value = _uiState.value.copy(isHistoryDetailLoading = false)
+                                showError(error.message.orEmpty())
+                            }
+                        }
+                }
+            }
+        }
+    }
+
+    fun closeHistoryDetail() {
+        historyDetailRequestToken++
+        _uiState.value = _uiState.value.copy(
+            selectedHistoryDetail = null,
+            isHistoryDetailLoading = false
+        )
     }
 
     fun refreshFamily() {
@@ -291,5 +389,20 @@ class VeciAppViewModel(
 
     private fun showError(message: String) {
         _uiState.value = _uiState.value.copy(errorMessage = message, successMessage = "")
+    }
+
+    private fun resolveLocation(
+        addressReference: String?,
+        latitude: Double?,
+        longitude: Double?
+    ): String? {
+        if (!addressReference.isNullOrBlank()) {
+            return addressReference
+        }
+        return if (latitude != null && longitude != null) {
+            "$latitude, $longitude"
+        } else {
+            null
+        }
     }
 }

@@ -72,12 +72,20 @@ class VeciAppRepository(
         apiService.getMyEmergencies()
     }
 
+    suspend fun getMyEmergencyById(id: Long): Result<EmergencyResponse> = runCatchingApi {
+        apiService.getMyEmergencyById(id)
+    }
+
     suspend fun createReport(request: CreateIncidentReportRequest): Result<IncidentReportResponse> = runCatchingApi {
         apiService.createReport(request)
     }
 
     suspend fun getMyReports(): Result<List<IncidentReportResponse>> = runCatchingApi {
         apiService.getMyReports()
+    }
+
+    suspend fun getMyReportById(id: Long): Result<IncidentReportResponse> = runCatchingApi {
+        apiService.getMyReportById(id)
     }
 
     suspend fun getMyHistory(): Result<List<HistoryItemResponse>> = runCatchingApi {

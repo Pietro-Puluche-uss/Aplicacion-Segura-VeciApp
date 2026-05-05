@@ -137,6 +137,24 @@ data class HistoryItemResponse(
     val createdAt: String? = null
 )
 
+data class HistoryDetailUi(
+    val itemType: String,
+    val itemId: Long,
+    val title: String,
+    val status: String,
+    val categoryOrTypeLabel: String? = null,
+    val subtitle: String? = null,
+    val description: String? = null,
+    val location: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val evidenceImageBase64: String? = null,
+    val assignedAuthorityName: String? = null,
+    val assignedDistanceKm: Double? = null,
+    val estimatedResponseMinutes: Int? = null,
+    val createdAt: String? = null
+)
+
 data class SubscriptionPlanResponse(
     val code: String,
     val name: String,
