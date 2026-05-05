@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.pietropuluche.veciapp.data.model.SubscriptionPlanResponse
 import com.pietropuluche.veciapp.data.model.UserSubscriptionResponse
@@ -131,10 +134,11 @@ fun SubscriptionScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { Spacer(modifier = Modifier.height(4.dp)) }
+        item { Spacer(modifier = Modifier.height(8.dp)) }
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -244,8 +248,9 @@ private fun SubscriptionPlanCard(
                     verticalAlignment = Alignment.Top
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.Top
                     ) {
                         Box(
                             modifier = Modifier
@@ -260,7 +265,10 @@ private fun SubscriptionPlanCard(
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
                             Text(
                                 text = plan.title,
                                 style = MaterialTheme.typography.titleLarge,
@@ -270,11 +278,19 @@ private fun SubscriptionPlanCard(
                             Text(
                                 text = plan.tagline,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
+                                color = TextSecondary,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
-                    PlanPriceLabel(plan.code, livePlan?.monthlyPrice ?: 0.0)
+                    PlanPriceLabel(
+                        planCode = plan.code,
+                        monthlyPrice = livePlan?.monthlyPrice ?: 0.0,
+                        modifier = Modifier
+                            .padding(start = 12.dp)
+                            .widthIn(min = 92.dp)
+                    )
                 }
 
                 Text(
@@ -339,24 +355,32 @@ private fun SubscriptionPlanCard(
 @Composable
 private fun PlanPriceLabel(
     planCode: String,
-    monthlyPrice: Double
+    monthlyPrice: Double,
+    modifier: Modifier = Modifier
 ) {
     if (planCode == "BASIC" || monthlyPrice <= 0.0) {
         Text(
             text = "Gratis",
             style = MaterialTheme.typography.headlineSmall,
             color = TextPrimary,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            modifier = modifier,
+            maxLines = 1
         )
         return
     }
 
-    Row(verticalAlignment = Alignment.Bottom) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.Bottom
+    ) {
         Text(
             text = "S/ ${String.format(Locale.US, "%.2f", monthlyPrice)}",
             style = MaterialTheme.typography.headlineSmall,
             color = TextPrimary,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
         )
         Text(
             text = "/mes",
