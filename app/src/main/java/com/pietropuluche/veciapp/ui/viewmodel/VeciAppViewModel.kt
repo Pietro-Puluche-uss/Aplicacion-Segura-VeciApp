@@ -80,20 +80,27 @@ class VeciAppViewModel(
 
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
-                profile = profileResult.getOrNull(),
-                dashboard = dashboardResult.getOrNull(),
-                categories = categoriesResult.getOrDefault(emptyList()),
-                subscription = subscriptionResult.getOrNull(),
-                plans = plansResult.getOrDefault(emptyList()),
-                history = historyResult.getOrDefault(emptyList()),
-                reports = reportsResult.getOrDefault(emptyList()),
-                emergencies = emergenciesResult.getOrDefault(emptyList()),
-                familyMembers = membersResult.getOrDefault(emptyList()),
-                familyMap = familyMapResult.getOrDefault(emptyList()),
+                profile = profileResult.getOrNull() ?: currentState.profile,
+                dashboard = dashboardResult.getOrNull() ?: currentState.dashboard,
+                categories = categoriesResult.getOrElse { currentState.categories },
+                subscription = subscriptionResult.getOrNull() ?: currentState.subscription,
+                plans = plansResult.getOrElse { currentState.plans },
+                history = historyResult.getOrElse { currentState.history },
+                reports = reportsResult.getOrElse { currentState.reports },
+                emergencies = emergenciesResult.getOrElse { currentState.emergencies },
+                familyMembers = membersResult.getOrElse { currentState.familyMembers },
+                familyMap = familyMapResult.getOrElse { currentState.familyMap },
                 errorMessage = listOf(
                     profileResult.exceptionOrNull()?.message,
                     dashboardResult.exceptionOrNull()?.message,
-                    categoriesResult.exceptionOrNull()?.message
+                    categoriesResult.exceptionOrNull()?.message,
+                    subscriptionResult.exceptionOrNull()?.message,
+                    plansResult.exceptionOrNull()?.message,
+                    historyResult.exceptionOrNull()?.message,
+                    reportsResult.exceptionOrNull()?.message,
+                    emergenciesResult.exceptionOrNull()?.message,
+                    membersResult.exceptionOrNull()?.message,
+                    familyMapResult.exceptionOrNull()?.message
                 ).firstOrNull { !it.isNullOrBlank() }.orEmpty()
             )
         }
