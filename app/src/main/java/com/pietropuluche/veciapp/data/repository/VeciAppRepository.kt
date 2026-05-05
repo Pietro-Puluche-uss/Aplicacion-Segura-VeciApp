@@ -23,10 +23,18 @@ import com.pietropuluche.veciapp.data.model.UpdateSubscriptionRequest
 import com.pietropuluche.veciapp.data.model.UserSubscriptionResponse
 import com.pietropuluche.veciapp.data.remote.ApiService
 import retrofit2.HttpException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 class VeciAppRepository(
     private val apiService: ApiService
 ) {
+
+    suspend fun warmUp(): Result<Unit> = runCatchingApi {
+        apiService.health()
+        Unit
+    }
 
     suspend fun register(request: RegisterRequest): Result<AuthResponse> = runCatchingApi {
         apiService.register(request)
@@ -112,7 +120,7 @@ class VeciAppRepository(
             val message = parseApiError(raw) ?: "Ocurrio un error al conectar con la API"
             Result.failure(IllegalStateException(message))
         } catch (exception: Exception) {
-            Result.failure(IllegalStateException(exception.message ?: "Ocurrio un error inesperado"))
+            Result.failure(IllegalStateException(parseUnexpectedError(exception)))
         }
     }
 
@@ -121,6 +129,15 @@ class VeciAppRepository(
             Gson().fromJson(raw, ErrorResponse::class.java)?.message
         } catch (_: Exception) {
             null
+        }
+    }
+
+    private fun parseUnexpectedError(exception: Exception): String {
+        return when (exception) {
+            is SocketTimeoutException -> "La API tardo demasiado en responder. Es posible que Render este despertando el servicio; intenta de nuevo en unos segundos."
+            is ConnectException -> "No se pudo establecer conexion con la API. Verifica tu internet o intenta nuevamente."
+            is UnknownHostException -> "No se pudo resolver la direccion del servidor. Revisa tu conexion a internet."
+            else -> exception.message ?: "Ocurrio un error inesperado"
         }
     }
 }

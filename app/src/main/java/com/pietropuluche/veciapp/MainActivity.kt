@@ -51,6 +51,10 @@ class MainActivity : ComponentActivity() {
                 val backStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = backStackEntry?.destination?.route
 
+                LaunchedEffect(Unit) {
+                    repository.warmUp()
+                }
+
                 LaunchedEffect(authState.isLoggedIn) {
                     if (authState.isLoggedIn) {
                         veciAppViewModel.bootstrap()
