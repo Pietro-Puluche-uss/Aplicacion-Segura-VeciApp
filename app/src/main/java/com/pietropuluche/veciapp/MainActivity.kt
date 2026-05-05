@@ -158,13 +158,12 @@ class MainActivity : ComponentActivity() {
                         composable(Route.Home.value) {
                             HomeScreen(
                                 uiState = appState,
-                                onRefresh = { veciAppViewModel.bootstrap() },
                                 onOpenEmergency = {
                                     veciAppViewModel.clearEmergencyConfirmation()
                                     navController.navigate(Route.Emergency.value)
                                 },
                                 onOpenReport = { navController.navigate(Route.Report.value) },
-                                onOpenSubscription = { navController.navigate(Route.Subscription.value) }
+                                onOpenProfile = { navController.navigate(Route.Profile.value) }
                             )
                         }
                         composable(Route.Emergency.value) {
