@@ -357,30 +357,13 @@ private fun AuthScreenFrame(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Card(
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF13274E))
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.sdil),
-                                contentDescription = "VeciApp",
-                                modifier = Modifier
-                                    .size(82.dp)
-                                    .padding(10.dp)
-                                    .clip(RoundedCornerShape(16.dp)),
-                                contentScale = ContentScale.Crop
-                            )
-                        }
-                        Text(
-                            text = "VeciApp",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = SurfaceCard,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Seguridad vecinal a tu alcance",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = SurfaceCard.copy(alpha = 0.82f)
+                        Image(
+                            painter = painterResource(id = R.drawable.login_banner),
+                            contentDescription = "VeciApp",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(20.dp)),
+                            contentScale = ContentScale.FillWidth
                         )
                     }
                 }

@@ -3,6 +3,7 @@ package com.pietropuluche.veciapp.ui.screens
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -213,21 +214,13 @@ private fun BrandHeader() {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Box(
+        Image(
+            painter = painterResource(id = R.drawable.logo_app),
+            contentDescription = "VeciApp",
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(18.dp))
-                .background(DeepOcean)
-                .padding(10.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                contentDescription = "VeciApp",
-                tint = Color.Unspecified,
-                modifier = Modifier.size(30.dp)
-            )
-        }
+        )
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 text = "VeciApp",
