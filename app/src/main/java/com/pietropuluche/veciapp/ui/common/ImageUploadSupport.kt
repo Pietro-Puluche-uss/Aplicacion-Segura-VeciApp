@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Base64
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Button
@@ -12,7 +13,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -71,6 +74,26 @@ fun OptionalImagePicker(
     }
 }
 
+@Composable
+fun Base64DataUrlImage(
+    dataUrl: String,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop
+) {
+    val bitmap = remember(dataUrl) {
+        decodeDataUrlToBitmap(dataUrl)
+    }
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale
+        )
+    }
+}
+
 suspend fun uriToCompressedDataUrl(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
     val bitmap = decodeBitmapForUpload(context, uri) ?: return@withContext null
     try {
@@ -108,4 +131,15 @@ private fun bitmapToDataUrl(bitmap: Bitmap): String {
     bitmap.compress(Bitmap.CompressFormat.JPEG, 82, output)
     val base64 = Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
     return "data:image/jpeg;base64,$base64"
+}
+
+private fun decodeDataUrlToBitmap(dataUrl: String): Bitmap? {
+    val encoded = dataUrl.substringAfter("base64,", missingDelimiterValue = dataUrl).trim()
+    if (encoded.isBlank()) {
+        return null
+    }
+    return runCatching {
+        val bytes = Base64.decode(encoded, Base64.DEFAULT)
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+    }.getOrNull()
 }

@@ -32,12 +32,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.pietropuluche.veciapp.data.model.HistoryDetailUi
 import com.pietropuluche.veciapp.data.model.HistoryItemResponse
+import com.pietropuluche.veciapp.ui.common.Base64DataUrlImage
 import com.pietropuluche.veciapp.ui.common.EmptyState
 import com.pietropuluche.veciapp.ui.theme.AlertAmber
 import com.pietropuluche.veciapp.ui.theme.AlertRed
@@ -357,13 +356,12 @@ private fun HistoryDetailCard(detail: HistoryDetailUi) {
                             color = TextPrimary,
                             fontWeight = FontWeight.SemiBold
                         )
-                        AsyncImage(
-                            model = imageData,
+                        Base64DataUrlImage(
+                            dataUrl = imageData,
                             contentDescription = "Imagen del historial",
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(220.dp),
-                            contentScale = ContentScale.Crop
+                                .height(220.dp)
                         )
                     }
                 }
