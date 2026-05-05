@@ -79,8 +79,10 @@ fun AppScaffold(
                     containerColor = SurfaceCard
                 ) {
                     defaultBottomItems.forEach { item ->
+                        val isSelected = currentRoute == item.route.value ||
+                            (currentRoute == Route.Subscription.value && item.route == Route.Profile)
                         NavigationBarItem(
-                            selected = currentRoute == item.route.value,
+                            selected = isSelected,
                             onClick = { onNavigate(item.route.value) },
                             icon = { Icon(item.icon, contentDescription = item.label) },
                             label = { Text(item.label) },

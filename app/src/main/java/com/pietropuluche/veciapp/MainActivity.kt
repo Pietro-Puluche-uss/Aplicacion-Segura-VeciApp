@@ -97,7 +97,8 @@ class MainActivity : ComponentActivity() {
                         Route.Emergency.value,
                         Route.History.value,
                         Route.Profile.value,
-                        Route.Family.value
+                        Route.Family.value,
+                        Route.Subscription.value
                     ),
                     onNavigate = { route ->
                         if (route != currentRoute) {
@@ -251,7 +252,14 @@ class MainActivity : ComponentActivity() {
                                 plans = appState.plans,
                                 successMessage = appState.successMessage,
                                 errorMessage = appState.errorMessage,
-                                onSelectPlan = { veciAppViewModel.updateSubscription(it) }
+                                onSelectPlan = { veciAppViewModel.updateSubscription(it) },
+                                onClose = {
+                                    if (!navController.popBackStack()) {
+                                        navController.navigate(Route.Profile.value) {
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                }
                             )
                         }
                         composable(Route.Family.value) {
