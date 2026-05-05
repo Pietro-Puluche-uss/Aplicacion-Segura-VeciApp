@@ -37,6 +37,7 @@ data class VeciAppUiState(
     val subscription: UserSubscriptionResponse? = null,
     val familyMembers: List<FamilyMemberResponse> = emptyList(),
     val familyMap: List<FamilyMapMemberResponse> = emptyList(),
+    val pendingEmergencyConfirmation: EmergencyResponse? = null,
     val successMessage: String = "",
     val errorMessage: String = ""
 )
@@ -90,6 +91,7 @@ class VeciAppViewModel(
                 emergencies = emergenciesResult.getOrElse { currentState.emergencies },
                 familyMembers = membersResult.getOrElse { currentState.familyMembers },
                 familyMap = familyMapResult.getOrElse { currentState.familyMap },
+                pendingEmergencyConfirmation = currentState.pendingEmergencyConfirmation,
                 errorMessage = listOf(
                     profileResult.exceptionOrNull()?.message,
                     dashboardResult.exceptionOrNull()?.message,
@@ -194,7 +196,8 @@ class VeciAppViewModel(
                 _uiState.value = _uiState.value.copy(
                     emergencies = listOf(it) + _uiState.value.emergencies,
                     history = _uiState.value.history,
-                    successMessage = "Alerta enviada correctamente",
+                    pendingEmergencyConfirmation = it,
+                    successMessage = "",
                     errorMessage = ""
                 )
                 bootstrap(clearFeedback = false)
@@ -280,6 +283,10 @@ class VeciAppViewModel(
 
     fun clearMessages() {
         _uiState.value = _uiState.value.copy(successMessage = "", errorMessage = "")
+    }
+
+    fun clearEmergencyConfirmation() {
+        _uiState.value = _uiState.value.copy(pendingEmergencyConfirmation = null)
     }
 
     private fun showError(message: String) {

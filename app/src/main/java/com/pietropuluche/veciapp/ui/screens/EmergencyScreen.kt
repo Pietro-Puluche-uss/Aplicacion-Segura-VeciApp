@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LocationOn
@@ -37,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,15 +49,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+import com.pietropuluche.veciapp.data.model.EmergencyResponse
+import com.pietropuluche.veciapp.ui.common.InlineMessage
 import com.pietropuluche.veciapp.ui.common.requestCurrentLocation
 import com.pietropuluche.veciapp.ui.common.resolveAddressReference
 import com.pietropuluche.veciapp.ui.theme.AlertAmber
 import com.pietropuluche.veciapp.ui.theme.AlertRed
+import com.pietropuluche.veciapp.ui.theme.DeepOcean
+import com.pietropuluche.veciapp.ui.theme.SuccessGreen
 import com.pietropuluche.veciapp.ui.theme.SurfaceCard
 import com.pietropuluche.veciapp.ui.theme.TextPrimary
 import com.pietropuluche.veciapp.ui.theme.TextSecondary
@@ -63,11 +69,32 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 private const val DefaultEmergencyType = "THREAT"
-private const val EmergencyPhoneNumber = "105105105"
+private const val EmergencyPhoneNumber = "105"
 
 @Composable
 fun EmergencyScreen(
-    successMessage: String,
+    errorMessage: String,
+    emergencyConfirmation: EmergencyResponse?,
+    onSubmit: (String, Double?, Double?, String, String, String?) -> Unit,
+    onGoHome: () -> Unit,
+    onClose: () -> Unit
+) {
+    if (emergencyConfirmation != null) {
+        EmergencySentScreen(
+            emergency = emergencyConfirmation,
+            onGoHome = onGoHome
+        )
+    } else {
+        EmergencyRequestScreen(
+            errorMessage = errorMessage,
+            onSubmit = onSubmit,
+            onClose = onClose
+        )
+    }
+}
+
+@Composable
+private fun EmergencyRequestScreen(
     errorMessage: String,
     onSubmit: (String, Double?, Double?, String, String, String?) -> Unit,
     onClose: () -> Unit
@@ -142,6 +169,8 @@ fun EmergencyScreen(
         }
     }
 
+    val locationText = addressReference.ifBlank { locationDisplay }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -171,12 +200,15 @@ fun EmergencyScreen(
             }
         }
         item {
-            EmergencyHeroCard()
+            if (errorMessage.isNotBlank()) {
+                InlineMessage(errorMessage, true)
+            }
         }
+        item { EmergencyHeroCard() }
         item {
             LocationStatusCard(
                 isLocating = isLocating,
-                locationDisplay = locationDisplay,
+                locationDisplay = locationText,
                 locationError = locationError,
                 onRetry = {
                     val fineGranted = ContextCompat.checkSelfPermission(
@@ -200,9 +232,7 @@ fun EmergencyScreen(
                 }
             )
         }
-        item {
-            EmergencyInfoCard()
-        }
+        item { EmergencyInfoCard() }
         item {
             Button(
                 onClick = {
@@ -240,47 +270,113 @@ fun EmergencyScreen(
             }
         }
         item {
-            Column(
+            EmergencyCallShortcut()
+        }
+    }
+}
+
+@Composable
+private fun EmergencySentScreen(
+    emergency: EmergencyResponse,
+    onGoHome: () -> Unit
+) {
+    val context = LocalContext.current
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        item { Spacer(modifier = Modifier.height(20.dp)) }
+        item {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                    .size(84.dp)
+                    .background(SuccessGreen.copy(alpha = 0.16f), CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "O llama directamente",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary
+                Icon(
+                    imageVector = Icons.Outlined.CheckCircle,
+                    contentDescription = null,
+                    tint = SuccessGreen,
+                    modifier = Modifier.size(42.dp)
                 )
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .clickable {
-                            context.startActivity(
-                                Intent(
-                                    Intent.ACTION_DIAL,
-                                    Uri.parse("tel:$EmergencyPhoneNumber")
-                                )
-                            )
-                        }
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Call,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = EmergencyPhoneNumber,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
             }
         }
+        item {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Alerta enviada",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "La comisaria mas cercana ha recibido tu alerta de VIDA EN RIESGO.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        item {
+            EmergencyAuthorityCard(emergency = emergency)
+        }
+        item {
+            Button(
+                onClick = {
+                    context.startActivity(
+                        Intent(
+                            Intent.ACTION_DIAL,
+                            Uri.parse("tel:$EmergencyPhoneNumber")
+                        )
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = DeepOcean,
+                    contentColor = SurfaceCard
+                ),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Call,
+                    contentDescription = null
+                )
+                Text(
+                    text = " Llamar a Comisaria: $EmergencyPhoneNumber",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        item {
+            TextButton(onClick = onGoHome) {
+                Text(
+                    text = "Volver al inicio",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = TextPrimary
+                )
+            }
+        }
+        item {
+            Text(
+                text = "Mantente en un lugar seguro. La ayuda esta en camino.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 10.dp)
+            )
+        }
+        item { Spacer(modifier = Modifier.height(24.dp)) }
     }
 }
 
@@ -458,6 +554,127 @@ private fun EmergencyInfoCard() {
     }
 }
 
+@Composable
+private fun EmergencyCallShortcut() {
+    val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = "O llama directamente",
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextSecondary
+        )
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(20.dp))
+                .clickable {
+                    context.startActivity(
+                        Intent(
+                            Intent.ACTION_DIAL,
+                            Uri.parse("tel:$EmergencyPhoneNumber")
+                        )
+                    )
+                }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Call,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = EmergencyPhoneNumber,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmergencyAuthorityCard(emergency: EmergencyResponse) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFEFFBF4)),
+        border = BorderStroke(1.dp, SuccessGreen.copy(alpha = 0.35f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Call,
+                    contentDescription = null,
+                    tint = SuccessGreen
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = emergency.assignedAuthorityName?.ifBlank { "Comisaria mas cercana" }
+                            ?: "Comisaria mas cercana",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = emergency.buildEtaSummary(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(SuccessGreen.copy(alpha = 0.22f))
+            )
+            Text(
+                text = "Ubicacion enviada: ${emergency.buildLocationSummary()}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = SuccessGreen,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+private fun EmergencyResponse.buildEtaSummary(): String {
+    val parts = buildList {
+        assignedDistanceKm?.let { add("A ${formatOneDecimal(it)} km") }
+        estimatedResponseMinutes?.let { add("Tiempo estimado: $it min") }
+    }
+    return if (parts.isEmpty()) {
+        "La autoridad ya fue notificada."
+    } else {
+        parts.joinToString(" - ")
+    }
+}
+
+private fun EmergencyResponse.buildLocationSummary(): String {
+    return when {
+        latitude != null && longitude != null -> formatCoordinates(latitude, longitude)
+        !addressReference.isNullOrBlank() -> addressReference
+        else -> "Compartida con autoridades"
+    }
+}
+
 private fun formatCoordinates(latitude: Double, longitude: Double): String {
     return String.format(Locale.US, "%.5f, %.5f", latitude, longitude)
+}
+
+private fun formatOneDecimal(value: Double): String {
+    return String.format(Locale.US, "%.1f", value)
 }

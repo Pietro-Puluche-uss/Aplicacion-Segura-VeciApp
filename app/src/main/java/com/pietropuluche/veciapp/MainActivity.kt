@@ -62,17 +62,21 @@ class MainActivity : ComponentActivity() {
                 }
 
                 LaunchedEffect(currentRoute, authState.errorMessage, authState.infoMessage, appState.errorMessage, appState.successMessage) {
+                    val shouldHoldEmergencyConfirmation =
+                        currentRoute == Route.Emergency.value &&
+                            appState.pendingEmergencyConfirmation != null
                     val message = authState.errorMessage.ifBlank {
                         authState.infoMessage.ifBlank {
-                            appState.errorMessage.ifBlank { appState.successMessage }
+                            if (shouldHoldEmergencyConfirmation) {
+                                appState.errorMessage
+                            } else {
+                                appState.errorMessage.ifBlank { appState.successMessage }
+                            }
                         }
                     }
                     if (message.isNotBlank()) {
-                        if (
-                            (currentRoute == Route.Emergency.value &&
-                                appState.successMessage == "Alerta enviada correctamente") ||
-                            (currentRoute == Route.Report.value &&
-                                appState.successMessage == "Reporte enviado correctamente")
+                        if (currentRoute == Route.Report.value &&
+                            appState.successMessage == "Reporte enviado correctamente"
                         ) {
                             navController.navigate(Route.Home.value) {
                                 popUpTo(Route.Home.value) { inclusive = false }
@@ -97,6 +101,9 @@ class MainActivity : ComponentActivity() {
                     ),
                     onNavigate = { route ->
                         if (route != currentRoute) {
+                            if (currentRoute == Route.Emergency.value) {
+                                veciAppViewModel.clearEmergencyConfirmation()
+                            }
                             navController.navigate(route) {
                                 launchSingleTop = true
                             }
@@ -152,19 +159,30 @@ class MainActivity : ComponentActivity() {
                             HomeScreen(
                                 uiState = appState,
                                 onRefresh = { veciAppViewModel.bootstrap() },
-                                onOpenEmergency = { navController.navigate(Route.Emergency.value) },
+                                onOpenEmergency = {
+                                    veciAppViewModel.clearEmergencyConfirmation()
+                                    navController.navigate(Route.Emergency.value)
+                                },
                                 onOpenReport = { navController.navigate(Route.Report.value) },
                                 onOpenSubscription = { navController.navigate(Route.Subscription.value) }
                             )
                         }
                         composable(Route.Emergency.value) {
                             EmergencyScreen(
-                                successMessage = appState.successMessage,
                                 errorMessage = appState.errorMessage,
+                                emergencyConfirmation = appState.pendingEmergencyConfirmation,
                                 onSubmit = { type, lat, lon, address, notes, evidenceImageBase64 ->
                                     veciAppViewModel.createEmergency(type, lat, lon, address, notes, evidenceImageBase64)
                                 },
+                                onGoHome = {
+                                    veciAppViewModel.clearEmergencyConfirmation()
+                                    navController.navigate(Route.Home.value) {
+                                        popUpTo(Route.Home.value) { inclusive = false }
+                                        launchSingleTop = true
+                                    }
+                                },
                                 onClose = {
+                                    veciAppViewModel.clearEmergencyConfirmation()
                                     if (!navController.popBackStack()) {
                                         navController.navigate(Route.Home.value) {
                                             launchSingleTop = true
