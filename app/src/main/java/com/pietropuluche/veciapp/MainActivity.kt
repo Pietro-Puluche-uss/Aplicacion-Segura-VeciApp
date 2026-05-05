@@ -69,8 +69,10 @@ class MainActivity : ComponentActivity() {
                     }
                     if (message.isNotBlank()) {
                         if (
-                            currentRoute == Route.Emergency.value &&
-                            appState.successMessage == "Alerta enviada correctamente"
+                            (currentRoute == Route.Emergency.value &&
+                                appState.successMessage == "Alerta enviada correctamente") ||
+                            (currentRoute == Route.Report.value &&
+                                appState.successMessage == "Reporte enviado correctamente")
                         ) {
                             navController.navigate(Route.Home.value) {
                                 popUpTo(Route.Home.value) { inclusive = false }
