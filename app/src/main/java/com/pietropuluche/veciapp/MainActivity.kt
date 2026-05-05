@@ -197,6 +197,13 @@ class MainActivity : ComponentActivity() {
                                 errorMessage = appState.errorMessage,
                                 onSubmit = { category, title, description, address, lat, lon, evidenceImageBase64 ->
                                     veciAppViewModel.createReport(category, title, description, address, lat, lon, evidenceImageBase64)
+                                },
+                                onClose = {
+                                    if (!navController.popBackStack()) {
+                                        navController.navigate(Route.Home.value) {
+                                            launchSingleTop = true
+                                        }
+                                    }
                                 }
                             )
                         }
