@@ -44,6 +44,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -61,6 +62,7 @@ import com.pietropuluche.veciapp.data.model.FamilyMapMemberResponse
 import com.pietropuluche.veciapp.data.model.ProfileResponse
 import com.pietropuluche.veciapp.ui.common.InlineMessage
 import com.pietropuluche.veciapp.ui.common.requestCurrentLocation
+import com.pietropuluche.veciapp.ui.common.resolveAddressReference
 import com.pietropuluche.veciapp.ui.theme.AlertAmber
 import com.pietropuluche.veciapp.ui.theme.DeepOcean
 import com.pietropuluche.veciapp.ui.theme.SurfaceCard
@@ -91,6 +93,15 @@ fun ProfileScreen(
 ) {
     val context = LocalContext.current
     var localMessage by rememberSaveable { mutableStateOf("") }
+    var resolvedPlaceName by rememberSaveable(
+        profile?.userId,
+        profile?.currentLatitude,
+        profile?.currentLongitude,
+        profile?.district,
+        profile?.city
+    ) {
+        mutableStateOf(resolveProfilePlace(profile))
+    }
     var editableEmail by rememberSaveable(profile?.userId, profile?.email) {
         mutableStateOf(profile?.email.orEmpty())
     }
@@ -127,11 +138,23 @@ fun ProfileScreen(
     }
 
     val planVisual = profilePlanVisual(profile?.subscriptionPlan)
-    val addressText = resolveProfileAddress(profile)
+    val addressCoordinates = resolveProfileCoordinates(profile)
+    val addressPlace = resolvedPlaceName
     val normalizedEmail = editableEmail.trim()
     val normalizedPhone = editablePhone.trim()
     val hasProfileChanges = profile != null &&
         (normalizedEmail != profile.email || normalizedPhone != profile.phone)
+
+    LaunchedEffect(profile?.currentLatitude, profile?.currentLongitude) {
+        resolvedPlaceName = resolveProfilePlace(profile)
+        val latitude = profile?.currentLatitude
+        val longitude = profile?.currentLongitude
+        if (latitude != null && longitude != null) {
+            resolveAddressReference(context, latitude, longitude)?.let { resolved ->
+                resolvedPlaceName = resolved
+            }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -263,8 +286,13 @@ fun ProfileScreen(
                             )
                         },
                         label = "Direccion",
-                        value = addressText,
-                        emphasize = addressText == "Sin configurar",
+                        value = addressCoordinates ?: addressPlace ?: "Sin configurar",
+                        supportingValue = if (addressCoordinates != null) {
+                            addressPlace?.takeIf { it.isNotBlank() }
+                        } else {
+                            null
+                        },
+                        emphasize = addressCoordinates == null && addressPlace == null,
                         onClick = {
                             val fineGranted = ContextCompat.checkSelfPermission(
                                 context,
@@ -640,6 +668,7 @@ private fun InfoRow(
     icon: @Composable () -> Unit,
     label: String,
     value: String,
+    supportingValue: String? = null,
     emphasize: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
@@ -666,6 +695,13 @@ private fun InfoRow(
                 color = TextPrimary,
                 fontWeight = if (emphasize) FontWeight.SemiBold else FontWeight.Normal
             )
+            supportingValue?.takeIf { it.isNotBlank() }?.let { place ->
+                Text(
+                    text = place,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
         }
     }
 }
@@ -737,8 +773,15 @@ private fun profilePlanVisual(plan: String?): ProfilePlanVisual {
     }
 }
 
-private fun resolveProfileAddress(profile: ProfileResponse?): String {
-    if (profile == null) return "Sin configurar"
+private fun resolveProfileCoordinates(profile: ProfileResponse?): String? {
+    if (profile?.currentLatitude == null || profile.currentLongitude == null) {
+        return null
+    }
+    return formatCoordinates(profile.currentLatitude, profile.currentLongitude)
+}
+
+private fun resolveProfilePlace(profile: ProfileResponse?): String? {
+    if (profile == null) return null
     val districtCity = listOfNotNull(
         profile.district?.takeIf { it.isNotBlank() },
         profile.city?.takeIf { it.isNotBlank() }
@@ -746,8 +789,9 @@ private fun resolveProfileAddress(profile: ProfileResponse?): String {
     if (districtCity.isNotEmpty()) {
         return districtCity.joinToString(", ")
     }
-    if (profile.currentLatitude != null && profile.currentLongitude != null) {
-        return "${profile.currentLatitude}, ${profile.currentLongitude}"
-    }
-    return "Sin configurar"
+    return null
+}
+
+private fun formatCoordinates(latitude: Double, longitude: Double): String {
+    return String.format(Locale.US, "%.5f, %.5f", latitude, longitude)
 }
