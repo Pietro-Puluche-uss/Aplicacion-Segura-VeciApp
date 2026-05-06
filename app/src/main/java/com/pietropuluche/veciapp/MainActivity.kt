@@ -274,15 +274,23 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Route.Family.value) {
                             FamilyScreen(
+                                currentPlan = appState.subscription?.currentPlan ?: appState.profile?.subscriptionPlan,
                                 familyMembers = appState.familyMembers,
                                 familyMap = appState.familyMap,
                                 successMessage = appState.successMessage,
                                 errorMessage = appState.errorMessage,
+                                onRefresh = { veciAppViewModel.refreshFamily() },
                                 onAddMember = { email, alias, relationship ->
                                     veciAppViewModel.addFamilyMember(email, alias, relationship)
                                 },
                                 onRemoveMember = { id ->
                                     veciAppViewModel.removeFamilyMember(id)
+                                },
+                                onOpenSubscription = { navController.navigate(Route.Subscription.value) },
+                                onClose = {
+                                    navController.navigate(Route.Home.value) {
+                                        launchSingleTop = true
+                                    }
                                 }
                             )
                         }
