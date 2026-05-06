@@ -44,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +65,7 @@ import com.pietropuluche.veciapp.data.model.FamilyMapMemberResponse
 import com.pietropuluche.veciapp.data.model.FamilyMemberResponse
 import com.pietropuluche.veciapp.ui.common.EmptyState
 import com.pietropuluche.veciapp.ui.common.InlineMessage
+import com.pietropuluche.veciapp.ui.common.resolveAddressReference
 import com.pietropuluche.veciapp.ui.theme.AlertAmber
 import com.pietropuluche.veciapp.ui.theme.DeepOcean
 import com.pietropuluche.veciapp.ui.theme.SurfaceCard
@@ -726,6 +728,29 @@ private fun FamilyMemberDetailDialog(
     onNavigate: () -> Unit,
     onClose: () -> Unit
 ) {
+    val context = LocalContext.current
+    var resolvedPlaceName by rememberSaveable(
+        member.userId,
+        member.latitude,
+        member.longitude,
+        member.district,
+        member.city
+    ) {
+        mutableStateOf(memberPlaceName(member))
+    }
+    val coordinatesText = memberCoordinatesText(member)
+
+    LaunchedEffect(member.userId, member.latitude, member.longitude) {
+        resolvedPlaceName = memberPlaceName(member)
+        val latitude = member.latitude
+        val longitude = member.longitude
+        if (latitude != null && longitude != null) {
+            resolveAddressReference(context, latitude, longitude)?.let { resolved ->
+                resolvedPlaceName = resolved
+            }
+        }
+    }
+
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -854,10 +879,17 @@ private fun FamilyMemberDetailDialog(
                                 color = TextSecondary
                             )
                             Text(
-                                text = memberLocationText(member),
+                                text = coordinatesText ?: "Sin coordenadas compartidas",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = TextPrimary
                             )
+                            resolvedPlaceName?.takeIf { it.isNotBlank() }?.let { place ->
+                                Text(
+                                    text = place,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                            }
                         }
                     }
 
@@ -1063,15 +1095,17 @@ private fun simulatedUpdatedLabel(
     return "Hace $minutes min"
 }
 
-private fun memberLocationText(member: FamilyUiMember): String {
-    val coordinates = if (member.latitude != null && member.longitude != null) {
-        "${String.format(Locale.US, "%.6f", member.latitude)}, ${String.format(Locale.US, "%.6f", member.longitude)}"
-    } else {
-        "Sin coordenadas compartidas"
+private fun memberCoordinatesText(member: FamilyUiMember): String? {
+    if (member.latitude == null || member.longitude == null) {
+        return null
     }
+    return "${String.format(Locale.US, "%.6f", member.latitude)}, ${String.format(Locale.US, "%.6f", member.longitude)}"
+}
+
+private fun memberPlaceName(member: FamilyUiMember): String? {
     val place = listOfNotNull(
         member.district?.takeIf { it.isNotBlank() },
         member.city?.takeIf { it.isNotBlank() }
     ).joinToString(", ")
-    return if (place.isBlank()) coordinates else "$coordinates\n$place"
+    return place.ifBlank { null }
 }
