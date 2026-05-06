@@ -238,6 +238,9 @@ class MainActivity : ComponentActivity() {
                                 familyPreview = appState.familyMap,
                                 successMessage = appState.successMessage,
                                 errorMessage = appState.errorMessage,
+                                onSaveProfile = { email, phone ->
+                                    veciAppViewModel.updateProfile(email, phone)
+                                },
                                 onUpdateLocation = { lat, lon, district, city ->
                                     veciAppViewModel.updateLocation(lat, lon, district, city)
                                 },

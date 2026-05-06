@@ -2,6 +2,7 @@ package com.pietropuluche.veciapp.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.util.Patterns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
@@ -30,12 +32,16 @@ import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Security
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
@@ -75,6 +82,7 @@ fun ProfileScreen(
     familyPreview: List<FamilyMapMemberResponse>,
     successMessage: String,
     errorMessage: String,
+    onSaveProfile: (String, String) -> Unit,
     onUpdateLocation: (Double, Double, String, String) -> Unit,
     onOpenSubscription: () -> Unit,
     onOpenFamily: () -> Unit,
@@ -83,6 +91,12 @@ fun ProfileScreen(
 ) {
     val context = LocalContext.current
     var localMessage by rememberSaveable { mutableStateOf("") }
+    var editableEmail by rememberSaveable(profile?.userId, profile?.email) {
+        mutableStateOf(profile?.email.orEmpty())
+    }
+    var editablePhone by rememberSaveable(profile?.userId, profile?.phone) {
+        mutableStateOf(profile?.phone.orEmpty())
+    }
 
     fun fetchLocation() {
         requestCurrentLocation(
@@ -114,6 +128,10 @@ fun ProfileScreen(
 
     val planVisual = profilePlanVisual(profile?.subscriptionPlan)
     val addressText = resolveProfileAddress(profile)
+    val normalizedEmail = editableEmail.trim()
+    val normalizedPhone = editablePhone.trim()
+    val hasProfileChanges = profile != null &&
+        (normalizedEmail != profile.email || normalizedPhone != profile.phone)
 
     LazyColumn(
         modifier = Modifier
@@ -272,6 +290,80 @@ fun ProfileScreen(
             }
         }
         item {
+            SectionTitle("Datos personales")
+        }
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Puedes actualizar tu celular y correo. Nombre, apellido y DNI se muestran como referencia y no se editan desde aqui.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                    ProfileReadOnlyField(
+                        label = "Nombre",
+                        value = profile?.firstName.orEmpty()
+                    )
+                    ProfileReadOnlyField(
+                        label = "Apellido",
+                        value = profile?.lastName.orEmpty()
+                    )
+                    ProfileReadOnlyField(
+                        label = "DNI",
+                        value = profile?.documentNumber?.ifBlank { "No registrado" } ?: "No registrado"
+                    )
+                    ProfileEditableField(
+                        label = "Correo",
+                        value = editableEmail,
+                        onValueChange = { editableEmail = it },
+                        keyboardType = KeyboardType.Email
+                    )
+                    ProfileEditableField(
+                        label = "Celular",
+                        value = editablePhone,
+                        onValueChange = { editablePhone = it },
+                        keyboardType = KeyboardType.Phone
+                    )
+                    Button(
+                        onClick = {
+                            when {
+                                normalizedEmail.isBlank() || normalizedPhone.isBlank() -> {
+                                    localMessage = "Correo y celular son obligatorios."
+                                }
+
+                                !Patterns.EMAIL_ADDRESS.matcher(normalizedEmail).matches() -> {
+                                    localMessage = "Ingresa un correo valido."
+                                }
+
+                                else -> {
+                                    localMessage = ""
+                                    onSaveProfile(normalizedEmail, normalizedPhone)
+                                }
+                            }
+                        },
+                        enabled = hasProfileChanges && normalizedEmail.isNotBlank() && normalizedPhone.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = DeepOcean)
+                    ) {
+                        Text(
+                            text = "Guardar cambios",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+        item {
             SectionTitle("Preferencias")
         }
         item {
@@ -337,6 +429,57 @@ fun ProfileScreen(
         item { Spacer(modifier = Modifier.height(12.dp)) }
     }
 }
+
+@Composable
+private fun ProfileReadOnlyField(
+    label: String,
+    value: String
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        readOnly = true,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text(label) },
+        shape = RoundedCornerShape(16.dp),
+        colors = profileFieldColors()
+    )
+}
+
+@Composable
+private fun ProfileEditableField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    keyboardType: KeyboardType
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth(),
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        shape = RoundedCornerShape(16.dp),
+        colors = profileFieldColors()
+    )
+}
+
+@Composable
+private fun profileFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = Color(0xFFF8FBFF),
+    unfocusedContainerColor = Color(0xFFF8FBFF),
+    disabledContainerColor = Color(0xFFF8FBFF),
+    focusedBorderColor = Color(0xFFD7E1EF),
+    unfocusedBorderColor = Color(0xFFD7E1EF),
+    disabledBorderColor = Color(0xFFD7E1EF),
+    focusedTextColor = TextPrimary,
+    unfocusedTextColor = TextPrimary,
+    disabledTextColor = TextPrimary,
+    focusedLabelColor = TextSecondary,
+    unfocusedLabelColor = TextSecondary,
+    disabledLabelColor = TextSecondary
+)
 
 @Composable
 private fun PlanChip(

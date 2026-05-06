@@ -231,23 +231,19 @@ class VeciAppViewModel(
     }
 
     fun updateProfile(
-        firstName: String,
-        lastName: String,
+        email: String,
         phone: String,
-        documentNumber: String,
-        profilePhotoUrl: String
+        profilePhotoUrl: String? = null
     ) {
         viewModelScope.launch {
             repository.updateProfile(
                 UpdateProfileRequest(
-                    firstName = firstName.trim(),
-                    lastName = lastName.trim(),
+                    email = email.trim(),
                     phone = phone.trim(),
-                    documentNumber = documentNumber.trim().ifBlank { null },
-                    profilePhotoUrl = profilePhotoUrl.trim().ifBlank { null }
+                    profilePhotoUrl = profilePhotoUrl?.trim()?.ifBlank { null }
                 )
             ).onSuccess {
-                _uiState.value = _uiState.value.copy(profile = it, successMessage = "Perfil actualizado", errorMessage = "")
+                _uiState.value = _uiState.value.copy(profile = it, successMessage = "Datos actualizados", errorMessage = "")
             }.onFailure { error ->
                 showError(error.message.orEmpty())
             }

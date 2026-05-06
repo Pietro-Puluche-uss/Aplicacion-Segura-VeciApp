@@ -53,10 +53,8 @@ data class ProfileResponse(
 )
 
 data class UpdateProfileRequest(
-    val firstName: String,
-    val lastName: String,
+    val email: String,
     val phone: String,
-    val documentNumber: String? = null,
     val profilePhotoUrl: String? = null
 )
 
