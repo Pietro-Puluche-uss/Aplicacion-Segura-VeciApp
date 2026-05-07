@@ -81,6 +81,7 @@ private data class FamilyUiMember(
     val displayName: String,
     val shortLabel: String,
     val roleLabel: String,
+    val groupType: String,
     val phone: String?,
     val latitude: Double?,
     val longitude: Double?,
@@ -103,6 +104,9 @@ private val familyMarkerColors = listOf(
     Color(0xFFF18A00)
 )
 
+private const val GroupFamily = "FAMILY"
+private const val GroupOther = "OTHER"
+
 @Composable
 fun FamilyScreen(
     currentPlan: String?,
@@ -111,7 +115,7 @@ fun FamilyScreen(
     successMessage: String,
     errorMessage: String,
     onRefresh: () -> Unit,
-    onAddMember: (String, String, String) -> Unit,
+    onAddMember: (String, String, String, String) -> Unit,
     onRemoveMember: (Long) -> Unit,
     onOpenSubscription: () -> Unit,
     onClose: () -> Unit
@@ -123,10 +127,17 @@ fun FamilyScreen(
     }
     val ownerMember = uiMembers.firstOrNull { it.isOwner }
     val familyCards = uiMembers.filterNot { it.isOwner }
+    val groupedMapMembers = remember(familyCards) {
+        familyCards.groupBy { normalizeGroupType(it.groupType) }
+    }
+    val groupedManagedMembers = remember(familyMembers) {
+        familyMembers.groupBy { normalizeGroupType(it.groupType) }
+    }
     var selectedMember by remember { mutableStateOf<FamilyUiMember?>(null) }
     var email by rememberSaveable { mutableStateOf("") }
     var alias by rememberSaveable { mutableStateOf("") }
     var relationship by rememberSaveable { mutableStateOf("") }
+    var selectedGroup by rememberSaveable { mutableStateOf(GroupFamily) }
 
     fun openMapsFor(member: FamilyUiMember?) {
         val lat = member?.latitude ?: ownerMember?.latitude ?: return
@@ -240,7 +251,7 @@ fun FamilyScreen(
                 }
                 item {
                     Text(
-                        text = "Miembros de familia",
+                        text = "Miembros vinculados",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.SemiBold
@@ -250,34 +261,37 @@ fun FamilyScreen(
                     if (familyCards.isEmpty()) {
                         EmptyState("Aun no has vinculado familiares a tu plan.")
                     } else {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            contentPadding = PaddingValues(end = 8.dp)
-                        ) {
-                            items(familyCards.size) { index ->
-                                val member = familyCards[index]
-                                FamilyMemberChip(
-                                    member = member,
-                                    onClick = { selectedMember = member }
-                                )
-                            }
+                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            GroupedMemberChipsSection(
+                                title = "Grupo Familia",
+                                members = groupedMapMembers[GroupFamily].orEmpty(),
+                                onSelectMember = { selectedMember = it }
+                            )
+                            GroupedMemberChipsSection(
+                                title = "Grupo Otro",
+                                members = groupedMapMembers[GroupOther].orEmpty(),
+                                onSelectMember = { selectedMember = it }
+                            )
                         }
                     }
                 }
                 item {
                     ManageFamilySection(
-                        familyMembers = familyMembers,
+                        groupedMembers = groupedManagedMembers,
                         email = email,
                         alias = alias,
                         relationship = relationship,
+                        selectedGroup = selectedGroup,
                         onEmailChange = { email = it },
                         onAliasChange = { alias = it },
                         onRelationshipChange = { relationship = it },
+                        onSelectedGroupChange = { selectedGroup = it },
                         onAddMember = {
-                            onAddMember(email, alias, relationship)
+                            onAddMember(email, alias, relationship, selectedGroup)
                             email = ""
                             alias = ""
                             relationship = ""
+                            selectedGroup = GroupFamily
                         },
                         onRemoveMember = onRemoveMember
                     )
@@ -609,14 +623,45 @@ private fun FamilyMemberChip(
 }
 
 @Composable
+private fun GroupedMemberChipsSection(
+    title: String,
+    members: List<FamilyUiMember>,
+    onSelectMember: (FamilyUiMember) -> Unit
+) {
+    if (members.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = TextSecondary,
+            fontWeight = FontWeight.SemiBold
+        )
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(end = 8.dp)
+        ) {
+            items(members.size) { index ->
+                val member = members[index]
+                FamilyMemberChip(
+                    member = member,
+                    onClick = { onSelectMember(member) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ManageFamilySection(
-    familyMembers: List<FamilyMemberResponse>,
+    groupedMembers: Map<String, List<FamilyMemberResponse>>,
     email: String,
     alias: String,
     relationship: String,
+    selectedGroup: String,
     onEmailChange: (String) -> Unit,
     onAliasChange: (String) -> Unit,
     onRelationshipChange: (String) -> Unit,
+    onSelectedGroupChange: (String) -> Unit,
     onAddMember: () -> Unit,
     onRemoveMember: (Long) -> Unit
 ) {
@@ -635,11 +680,33 @@ private fun ManageFamilySection(
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold
             )
+            Text(
+                text = "Elige si el nuevo integrante se guarda en Familia o en Otro.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                GroupOptionCard(
+                    title = "Familia",
+                    selected = normalizeGroupType(selectedGroup) == GroupFamily,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSelectedGroupChange(GroupFamily) }
+                )
+                GroupOptionCard(
+                    title = "Otro",
+                    selected = normalizeGroupType(selectedGroup) == GroupOther,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSelectedGroupChange(GroupOther) }
+                )
+            }
             OutlinedTextField(
                 value = email,
                 onValueChange = onEmailChange,
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Correo del familiar") },
+                placeholder = { Text("Correo del integrante") },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp)
             )
@@ -675,46 +742,109 @@ private fun ManageFamilySection(
                     containerColor = DeepOcean,
                     contentColor = SurfaceCard
                 )
-            ) {
-                Text(
-                    text = "Agregar miembro",
+                ) {
+                    Text(
+                    text = "Agregar al grupo",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
             }
-            if (familyMembers.isNotEmpty()) {
+            val familyGroupMembers = groupedMembers[GroupFamily].orEmpty()
+            val otherGroupMembers = groupedMembers[GroupOther].orEmpty()
+            if (familyGroupMembers.isNotEmpty() || otherGroupMembers.isNotEmpty()) {
                 HorizontalDivider(color = Color(0xFFE7ECF4))
-                familyMembers.forEach { member ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            Text(
-                                text = member.alias ?: member.fullName,
-                                style = MaterialTheme.typography.titleSmall,
-                                color = TextPrimary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = member.phone,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextSecondary
-                            )
-                        }
-                        Text(
-                            text = "Quitar",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFFE05B5B),
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.clickable { onRemoveMember(member.id) }
-                        )
-                    }
+                GroupedManagedMembersSection(
+                    title = "Grupo Familia",
+                    members = familyGroupMembers,
+                    onRemoveMember = onRemoveMember
+                )
+                GroupedManagedMembersSection(
+                    title = "Grupo Otro",
+                    members = otherGroupMembers,
+                    onRemoveMember = onRemoveMember
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupOptionCard(
+    title: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) DeepOcean.copy(alpha = 0.08f) else Color(0xFFF5F8FD)
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (selected) DeepOcean else Color(0xFFDCE5F1)
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 14.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = if (selected) DeepOcean else TextPrimary,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+@Composable
+private fun GroupedManagedMembersSection(
+    title: String,
+    members: List<FamilyMemberResponse>,
+    onRemoveMember: (Long) -> Unit
+) {
+    if (members.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = TextSecondary,
+            fontWeight = FontWeight.SemiBold
+        )
+        members.forEach { member ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        text = member.alias ?: member.fullName,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = member.phone,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
                 }
+                Text(
+                    text = "Quitar",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFFE05B5B),
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable { onRemoveMember(member.id) }
+                )
             }
         }
     }
@@ -813,6 +943,12 @@ private fun FamilyMemberDetailDialog(
                                     style = MaterialTheme.typography.titleLarge,
                                     color = TextPrimary,
                                     fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = groupLabel(member.groupType),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = DeepOcean,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
                                     text = "Actualizado: ${member.updatedLabel}",
@@ -1029,6 +1165,7 @@ private fun buildFamilyUiMembers(
                 !linked?.relationshipLabel.isNullOrBlank() -> linked?.relationshipLabel ?: "Familiar"
                 else -> "Familiar"
             },
+            groupType = linked?.groupType ?: GroupFamily,
             phone = linked?.phone,
             latitude = member.latitude,
             longitude = member.longitude,
@@ -1074,6 +1211,22 @@ private fun resolveFamilyPoint(
         0.50f to 0.20f
     )
     return fallback[(index - 1).mod(fallback.size)]
+}
+
+private fun normalizeGroupType(groupType: String?): String {
+    return if (groupType.equals(GroupOther, ignoreCase = true)) {
+        GroupOther
+    } else {
+        GroupFamily
+    }
+}
+
+private fun groupLabel(groupType: String?): String {
+    return if (normalizeGroupType(groupType) == GroupOther) {
+        "Grupo Otro"
+    } else {
+        "Grupo Familia"
+    }
 }
 
 private fun simulatedBatteryPercent(

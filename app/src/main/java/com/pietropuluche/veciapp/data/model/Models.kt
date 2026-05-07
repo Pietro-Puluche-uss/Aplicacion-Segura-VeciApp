@@ -173,7 +173,8 @@ data class UpdateSubscriptionRequest(
 data class FamilyMemberRequest(
     val email: String,
     val alias: String? = null,
-    val relationshipLabel: String? = null
+    val relationshipLabel: String? = null,
+    val groupType: String = "FAMILY"
 )
 
 data class FamilyMemberResponse(
@@ -184,6 +185,7 @@ data class FamilyMemberResponse(
     val phone: String,
     val alias: String? = null,
     val relationshipLabel: String? = null,
+    val groupType: String = "FAMILY",
     val createdAt: String
 )
 

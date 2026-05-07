@@ -283,8 +283,8 @@ class MainActivity : ComponentActivity() {
                                 successMessage = appState.successMessage,
                                 errorMessage = appState.errorMessage,
                                 onRefresh = { veciAppViewModel.refreshFamily() },
-                                onAddMember = { email, alias, relationship ->
-                                    veciAppViewModel.addFamilyMember(email, alias, relationship)
+                                onAddMember = { email, alias, relationship, groupType ->
+                                    veciAppViewModel.addFamilyMember(email, alias, relationship, groupType)
                                 },
                                 onRemoveMember = { id ->
                                     veciAppViewModel.removeFamilyMember(id)

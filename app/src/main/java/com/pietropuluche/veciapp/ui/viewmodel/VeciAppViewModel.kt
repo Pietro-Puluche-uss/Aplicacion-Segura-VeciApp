@@ -346,13 +346,14 @@ class VeciAppViewModel(
         }
     }
 
-    fun addFamilyMember(email: String, alias: String, relationshipLabel: String) {
+    fun addFamilyMember(email: String, alias: String, relationshipLabel: String, groupType: String) {
         viewModelScope.launch {
             repository.addFamilyMember(
                 FamilyMemberRequest(
                     email = email.trim(),
                     alias = alias.trim().ifBlank { null },
-                    relationshipLabel = relationshipLabel.trim().ifBlank { null }
+                    relationshipLabel = relationshipLabel.trim().ifBlank { null },
+                    groupType = groupType.trim().ifBlank { "FAMILY" }
                 )
             ).onSuccess {
                 _uiState.value = _uiState.value.copy(successMessage = "Miembro agregado", errorMessage = "")
