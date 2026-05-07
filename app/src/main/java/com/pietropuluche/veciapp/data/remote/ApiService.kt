@@ -7,6 +7,7 @@ import com.pietropuluche.veciapp.data.model.CreateIncidentReportRequest
 import com.pietropuluche.veciapp.data.model.DashboardHomeResponse
 import com.pietropuluche.veciapp.data.model.EmergencyResponse
 import com.pietropuluche.veciapp.data.model.FamilyMapMemberResponse
+import com.pietropuluche.veciapp.data.model.FamilyEmergencyAlertResponse
 import com.pietropuluche.veciapp.data.model.FamilyInvitationResponse
 import com.pietropuluche.veciapp.data.model.FamilyMemberRequest
 import com.pietropuluche.veciapp.data.model.FamilyMemberResponse
@@ -93,6 +94,9 @@ interface ApiService {
     @GET("api/family/invitations/mine")
     suspend fun getMyFamilyInvitations(): List<FamilyInvitationResponse>
 
+    @GET("api/family/alerts")
+    suspend fun getMyFamilyAlerts(): List<FamilyEmergencyAlertResponse>
+
     @POST("api/family/members")
     suspend fun addFamilyMember(@Body request: FamilyMemberRequest): FamilyMemberResponse
 
@@ -101,6 +105,9 @@ interface ApiService {
 
     @POST("api/family/invitations/{id}/reject")
     suspend fun rejectFamilyInvitation(@Path("id") id: Long): ApiMessageResponse
+
+    @POST("api/family/alerts/{id}/read")
+    suspend fun markFamilyAlertRead(@Path("id") id: Long): ApiMessageResponse
 
     @DELETE("api/family/members/{id}")
     suspend fun removeFamilyMember(@Path("id") id: Long): ApiMessageResponse

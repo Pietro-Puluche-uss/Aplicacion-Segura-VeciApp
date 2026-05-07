@@ -32,6 +32,7 @@ import com.pietropuluche.veciapp.ui.screens.SubscriptionScreen
 import com.pietropuluche.veciapp.ui.theme.VeciAppTheme
 import com.pietropuluche.veciapp.ui.viewmodel.AuthViewModel
 import com.pietropuluche.veciapp.ui.viewmodel.VeciAppViewModel
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,16 +62,33 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                LaunchedEffect(currentRoute, authState.errorMessage, authState.infoMessage, appState.errorMessage, appState.successMessage) {
+                LaunchedEffect(authState.isLoggedIn, currentRoute) {
+                    val authenticatedRoute = currentRoute !in listOf(
+                        null,
+                        Route.Splash.value,
+                        Route.Login.value,
+                        Route.Register.value
+                    )
+                    if (authState.isLoggedIn && authenticatedRoute) {
+                        while (true) {
+                            delay(20000)
+                            veciAppViewModel.refreshFamily()
+                        }
+                    }
+                }
+
+                LaunchedEffect(currentRoute, authState.errorMessage, authState.infoMessage, appState.errorMessage, appState.successMessage, appState.familyAlertMessage) {
                     val shouldHoldEmergencyConfirmation =
                         currentRoute == Route.Emergency.value &&
                             appState.pendingEmergencyConfirmation != null
                     val message = authState.errorMessage.ifBlank {
                         authState.infoMessage.ifBlank {
-                            if (shouldHoldEmergencyConfirmation) {
-                                appState.errorMessage
-                            } else {
-                                appState.errorMessage.ifBlank { appState.successMessage }
+                            appState.familyAlertMessage.ifBlank {
+                                if (shouldHoldEmergencyConfirmation) {
+                                    appState.errorMessage
+                                } else {
+                                    appState.errorMessage.ifBlank { appState.successMessage }
+                                }
                             }
                         }
                     }
@@ -86,6 +104,7 @@ class MainActivity : ComponentActivity() {
                         snackbarHostState.showSnackbar(message)
                         authViewModel.clearMessage()
                         veciAppViewModel.clearMessages()
+                        veciAppViewModel.clearFamilyAlertMessage()
                     }
                 }
 
@@ -282,6 +301,7 @@ class MainActivity : ComponentActivity() {
                                 familyMembers = appState.familyMembers,
                                 familyMap = appState.familyMap,
                                 invitations = appState.familyInvitations,
+                                emergencyAlerts = appState.familyEmergencyAlerts,
                                 successMessage = appState.successMessage,
                                 errorMessage = appState.errorMessage,
                                 onRefresh = { veciAppViewModel.refreshFamily() },

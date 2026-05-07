@@ -201,6 +201,21 @@ data class FamilyInvitationResponse(
     val createdAt: String
 )
 
+data class FamilyEmergencyAlertResponse(
+    val id: Long,
+    val ownerUserId: Long,
+    val ownerFullName: String,
+    val senderUserId: Long,
+    val senderFullName: String,
+    val emergencyId: Long,
+    val groupType: String = "FAMILY",
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val addressReference: String? = null,
+    val createdAt: String,
+    val readAt: String? = null
+)
+
 data class FamilyMapMemberResponse(
     val userId: Long,
     val fullName: String,

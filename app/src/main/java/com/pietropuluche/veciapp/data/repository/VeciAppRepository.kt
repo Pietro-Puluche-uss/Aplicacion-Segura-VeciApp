@@ -8,6 +8,7 @@ import com.pietropuluche.veciapp.data.model.DashboardHomeResponse
 import com.pietropuluche.veciapp.data.model.EmergencyResponse
 import com.pietropuluche.veciapp.data.model.ErrorResponse
 import com.pietropuluche.veciapp.data.model.FamilyMapMemberResponse
+import com.pietropuluche.veciapp.data.model.FamilyEmergencyAlertResponse
 import com.pietropuluche.veciapp.data.model.FamilyInvitationResponse
 import com.pietropuluche.veciapp.data.model.FamilyMemberRequest
 import com.pietropuluche.veciapp.data.model.FamilyMemberResponse
@@ -113,6 +114,10 @@ class VeciAppRepository(
         apiService.getMyFamilyInvitations()
     }
 
+    suspend fun getMyFamilyAlerts(): Result<List<FamilyEmergencyAlertResponse>> = runCatchingApi {
+        apiService.getMyFamilyAlerts()
+    }
+
     suspend fun addFamilyMember(request: FamilyMemberRequest): Result<FamilyMemberResponse> = runCatchingApi {
         apiService.addFamilyMember(request)
     }
@@ -123,6 +128,10 @@ class VeciAppRepository(
 
     suspend fun rejectFamilyInvitation(id: Long): Result<String> = runCatchingApi {
         apiService.rejectFamilyInvitation(id).message
+    }
+
+    suspend fun markFamilyAlertRead(id: Long): Result<String> = runCatchingApi {
+        apiService.markFamilyAlertRead(id).message
     }
 
     suspend fun removeFamilyMember(id: Long): Result<String> = runCatchingApi {

@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.pietropuluche.veciapp.data.model.FamilyMapMemberResponse
+import com.pietropuluche.veciapp.data.model.FamilyEmergencyAlertResponse
 import com.pietropuluche.veciapp.data.model.FamilyInvitationResponse
 import com.pietropuluche.veciapp.data.model.FamilyMemberResponse
 import com.pietropuluche.veciapp.ui.common.EmptyState
@@ -73,6 +74,7 @@ import com.pietropuluche.veciapp.ui.theme.SurfaceCard
 import com.pietropuluche.veciapp.ui.theme.SuccessGreen
 import com.pietropuluche.veciapp.ui.theme.TextPrimary
 import com.pietropuluche.veciapp.ui.theme.TextSecondary
+import java.time.OffsetDateTime
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
@@ -115,6 +117,7 @@ fun FamilyScreen(
     familyMembers: List<FamilyMemberResponse>,
     familyMap: List<FamilyMapMemberResponse>,
     invitations: List<FamilyInvitationResponse>,
+    emergencyAlerts: List<FamilyEmergencyAlertResponse>,
     successMessage: String,
     errorMessage: String,
     onRefresh: () -> Unit,
@@ -151,6 +154,16 @@ fun FamilyScreen(
     fun openMapsFor(member: FamilyUiMember?) {
         val lat = member?.latitude ?: ownerMember?.latitude ?: return
         val lon = member?.longitude ?: ownerMember?.longitude ?: return
+        val intent = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("https://www.google.com/maps/search/?api=1&query=$lat,$lon")
+        )
+        context.startActivity(intent)
+    }
+
+    fun openMapsForAlert(alert: FamilyEmergencyAlertResponse) {
+        val lat = alert.latitude ?: return
+        val lon = alert.longitude ?: return
         val intent = Intent(
             Intent.ACTION_VIEW,
             Uri.parse("https://www.google.com/maps/search/?api=1&query=$lat,$lon")
@@ -225,6 +238,15 @@ fun FamilyScreen(
                 }
                 if (successMessage.isNotBlank()) {
                     InlineMessage(successMessage, false)
+                }
+            }
+
+            if (emergencyAlerts.isNotEmpty()) {
+                item {
+                    EmergencyAlertSection(
+                        alerts = emergencyAlerts,
+                        onOpenMaps = { openMapsForAlert(it) }
+                    )
                 }
             }
 
@@ -333,6 +355,103 @@ fun FamilyScreen(
                 onNavigate = { openMapsFor(member) },
                 onClose = { selectedMember = null }
             )
+        }
+    }
+}
+
+@Composable
+private fun EmergencyAlertSection(
+    alerts: List<FamilyEmergencyAlertResponse>,
+    onOpenMaps: (FamilyEmergencyAlertResponse) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Alertas del grupo",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+            alerts.take(5).forEach { alert ->
+                EmergencyAlertCard(
+                    alert = alert,
+                    onOpenMaps = { onOpenMaps(alert) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmergencyAlertCard(
+    alert: FamilyEmergencyAlertResponse,
+    onOpenMaps: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5F5))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Alerta de ${alert.senderFullName}",
+                style = MaterialTheme.typography.titleSmall,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = groupLabel(alert.groupType),
+                style = MaterialTheme.typography.bodySmall,
+                color = DeepOcean,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = alert.addressReference?.ifBlank { null }
+                    ?: listOfNotNull(alert.latitude, alert.longitude)
+                        .takeIf { it.size == 2 }
+                        ?.joinToString(", ")
+                    ?: "Ubicacion compartida con el grupo",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            if (alert.latitude != null && alert.longitude != null) {
+                Text(
+                    text = "${String.format(Locale.US, "%.5f", alert.latitude)}, ${String.format(Locale.US, "%.5f", alert.longitude)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+            Text(
+                text = "Recibida: ${formatRelativeFamilyAlertTime(alert.createdAt)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            Button(
+                onClick = onOpenMaps,
+                enabled = alert.latitude != null && alert.longitude != null,
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = DeepOcean,
+                    contentColor = SurfaceCard,
+                    disabledContainerColor = DeepOcean.copy(alpha = 0.25f),
+                    disabledContentColor = SurfaceCard.copy(alpha = 0.75f)
+                )
+            ) {
+                Text(
+                    text = "Abrir ubicacion",
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
     }
 }
@@ -1396,6 +1515,21 @@ private fun groupLabel(groupType: String?): String {
     } else {
         "Grupo Familia"
     }
+}
+
+private fun formatRelativeFamilyAlertTime(createdAt: String): String {
+    return runCatching {
+        val created = OffsetDateTime.parse(createdAt)
+        val now = OffsetDateTime.now()
+        val minutes = java.time.Duration.between(created, now).toMinutes().coerceAtLeast(0)
+        when {
+            minutes < 1 -> "Hace unos segundos"
+            minutes == 1L -> "Hace 1 min"
+            minutes < 60 -> "Hace $minutes min"
+            minutes < 1440 -> "Hace ${minutes / 60} h"
+            else -> "Hace ${minutes / 1440} d"
+        }
+    }.getOrElse { createdAt }
 }
 
 private fun simulatedBatteryPercent(

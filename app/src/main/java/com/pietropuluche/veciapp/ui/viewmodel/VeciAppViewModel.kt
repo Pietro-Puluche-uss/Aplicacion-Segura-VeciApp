@@ -7,6 +7,7 @@ import com.pietropuluche.veciapp.data.model.CreateIncidentReportRequest
 import com.pietropuluche.veciapp.data.model.DashboardHomeResponse
 import com.pietropuluche.veciapp.data.model.EmergencyResponse
 import com.pietropuluche.veciapp.data.model.FamilyMapMemberResponse
+import com.pietropuluche.veciapp.data.model.FamilyEmergencyAlertResponse
 import com.pietropuluche.veciapp.data.model.FamilyInvitationResponse
 import com.pietropuluche.veciapp.data.model.FamilyMemberRequest
 import com.pietropuluche.veciapp.data.model.FamilyMemberResponse
@@ -42,6 +43,8 @@ data class VeciAppUiState(
     val familyMembers: List<FamilyMemberResponse> = emptyList(),
     val familyMap: List<FamilyMapMemberResponse> = emptyList(),
     val familyInvitations: List<FamilyInvitationResponse> = emptyList(),
+    val familyEmergencyAlerts: List<FamilyEmergencyAlertResponse> = emptyList(),
+    val familyAlertMessage: String = "",
     val pendingEmergencyConfirmation: EmergencyResponse? = null,
     val successMessage: String = "",
     val errorMessage: String = ""
@@ -54,6 +57,7 @@ class VeciAppViewModel(
     private val _uiState = MutableStateFlow(VeciAppUiState())
     val uiState: StateFlow<VeciAppUiState> = _uiState.asStateFlow()
     private var historyDetailRequestToken: Long = 0
+    private val announcedFamilyAlertIds = mutableSetOf<Long>()
 
     fun bootstrap(clearFeedback: Boolean = true) {
         viewModelScope.launch {
@@ -74,6 +78,7 @@ class VeciAppViewModel(
             val membersDeferred = async { repository.getFamilyMembers() }
             val familyMapDeferred = async { repository.getFamilyMap() }
             val invitationsDeferred = async { repository.getMyFamilyInvitations() }
+            val familyAlertsDeferred = async { repository.getMyFamilyAlerts() }
 
             val profileResult = profileDeferred.await()
             val dashboardResult = dashboardDeferred.await()
@@ -86,6 +91,9 @@ class VeciAppViewModel(
             val membersResult = membersDeferred.await()
             val familyMapResult = familyMapDeferred.await()
             val invitationsResult = invitationsDeferred.await()
+            val familyAlertsResult = familyAlertsDeferred.await()
+            val familyAlerts = familyAlertsResult.getOrDefault(currentState.familyEmergencyAlerts)
+            val alertMessage = findNewFamilyAlertMessage(familyAlerts)
 
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
@@ -102,6 +110,8 @@ class VeciAppViewModel(
                 familyMembers = membersResult.getOrElse { currentState.familyMembers },
                 familyMap = familyMapResult.getOrElse { currentState.familyMap },
                 familyInvitations = invitationsResult.getOrElse { currentState.familyInvitations },
+                familyEmergencyAlerts = familyAlerts,
+                familyAlertMessage = alertMessage,
                 pendingEmergencyConfirmation = currentState.pendingEmergencyConfirmation,
                 errorMessage = listOf(
                     profileResult.exceptionOrNull()?.message,
@@ -114,7 +124,8 @@ class VeciAppViewModel(
                     emergenciesResult.exceptionOrNull()?.message,
                     membersResult.exceptionOrNull()?.message,
                     familyMapResult.exceptionOrNull()?.message,
-                    invitationsResult.exceptionOrNull()?.message
+                    invitationsResult.exceptionOrNull()?.message,
+                    familyAlertsResult.exceptionOrNull()?.message
                 ).firstOrNull { !it.isNullOrBlank() }.orEmpty()
             )
         }
@@ -227,13 +238,18 @@ class VeciAppViewModel(
             val membersResult = repository.getFamilyMembers()
             val mapResult = repository.getFamilyMap()
             val invitationsResult = repository.getMyFamilyInvitations()
+            val alertsResult = repository.getMyFamilyAlerts()
+            val alerts = alertsResult.getOrDefault(_uiState.value.familyEmergencyAlerts)
             _uiState.value = _uiState.value.copy(
                 familyMembers = membersResult.getOrDefault(emptyList()),
                 familyMap = mapResult.getOrDefault(emptyList()),
                 familyInvitations = invitationsResult.getOrDefault(emptyList()),
+                familyEmergencyAlerts = alerts,
+                familyAlertMessage = findNewFamilyAlertMessage(alerts),
                 errorMessage = membersResult.exceptionOrNull()?.message
                     ?: mapResult.exceptionOrNull()?.message
                     ?: invitationsResult.exceptionOrNull()?.message
+                    ?: alertsResult.exceptionOrNull()?.message
                     ?: ""
             )
         }
@@ -425,12 +441,32 @@ class VeciAppViewModel(
         _uiState.value = _uiState.value.copy(successMessage = "", errorMessage = "")
     }
 
+    fun clearFamilyAlertMessage() {
+        _uiState.value = _uiState.value.copy(familyAlertMessage = "")
+    }
+
     fun clearEmergencyConfirmation() {
         _uiState.value = _uiState.value.copy(pendingEmergencyConfirmation = null)
     }
 
     private fun showError(message: String) {
         _uiState.value = _uiState.value.copy(errorMessage = message, successMessage = "")
+    }
+
+    private fun findNewFamilyAlertMessage(alerts: List<FamilyEmergencyAlertResponse>): String {
+        val nextAlert = alerts.firstOrNull { it.readAt == null && announcedFamilyAlertIds.add(it.id) } ?: return ""
+        viewModelScope.launch {
+            repository.markFamilyAlertRead(nextAlert.id)
+        }
+        return "Alerta de emergencia de ${nextAlert.senderFullName} en ${groupLabel(nextAlert.groupType)}"
+    }
+
+    private fun groupLabel(groupType: String): String {
+        return if (groupType.equals("OTHER", ignoreCase = true)) {
+            "Grupo Otro"
+        } else {
+            "Grupo Familia"
+        }
     }
 
     private fun resolveLocation(
