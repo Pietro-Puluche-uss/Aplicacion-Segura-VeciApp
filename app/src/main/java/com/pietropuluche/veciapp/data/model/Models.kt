@@ -179,10 +179,22 @@ data class FamilyMemberRequest(
 
 data class FamilyMemberResponse(
     val id: Long,
+    val ownerUserId: Long,
     val memberUserId: Long,
     val fullName: String,
     val email: String,
     val phone: String,
+    val alias: String? = null,
+    val relationshipLabel: String? = null,
+    val groupType: String = "FAMILY",
+    val createdAt: String
+)
+
+data class FamilyInvitationResponse(
+    val id: Long,
+    val ownerUserId: Long,
+    val ownerFullName: String,
+    val ownerEmail: String,
     val alias: String? = null,
     val relationshipLabel: String? = null,
     val groupType: String = "FAMILY",

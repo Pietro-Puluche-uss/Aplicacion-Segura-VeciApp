@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.pietropuluche.veciapp.data.model.FamilyMapMemberResponse
+import com.pietropuluche.veciapp.data.model.FamilyInvitationResponse
 import com.pietropuluche.veciapp.data.model.FamilyMemberResponse
 import com.pietropuluche.veciapp.ui.common.EmptyState
 import com.pietropuluche.veciapp.ui.common.InlineMessage
@@ -109,14 +110,19 @@ private const val GroupOther = "OTHER"
 
 @Composable
 fun FamilyScreen(
+    currentUserId: Long?,
     currentPlan: String?,
     familyMembers: List<FamilyMemberResponse>,
     familyMap: List<FamilyMapMemberResponse>,
+    invitations: List<FamilyInvitationResponse>,
     successMessage: String,
     errorMessage: String,
     onRefresh: () -> Unit,
     onAddMember: (String, String, String, String) -> Unit,
     onRemoveMember: (Long) -> Unit,
+    onAcceptInvitation: (Long) -> Unit,
+    onRejectInvitation: (Long) -> Unit,
+    onLeaveGroup: () -> Unit,
     onOpenSubscription: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -133,6 +139,9 @@ fun FamilyScreen(
     val groupedManagedMembers = remember(familyMembers) {
         familyMembers.groupBy { normalizeGroupType(it.groupType) }
     }
+    val canAccessSharedGroup = familyMap.isNotEmpty()
+    val canManageGroup = isFamilyPlan && ownerMember?.userId == currentUserId
+    val isJoinedAsMember = canAccessSharedGroup && ownerMember?.userId != currentUserId
     var selectedMember by remember { mutableStateOf<FamilyUiMember?>(null) }
     var email by rememberSaveable { mutableStateOf("") }
     var alias by rememberSaveable { mutableStateOf("") }
@@ -219,7 +228,17 @@ fun FamilyScreen(
                 }
             }
 
-            if (!isFamilyPlan) {
+            if (invitations.isNotEmpty()) {
+                item {
+                    InvitationSection(
+                        invitations = invitations,
+                        onAcceptInvitation = onAcceptInvitation,
+                        onRejectInvitation = onRejectInvitation
+                    )
+                }
+            }
+
+            if (!isFamilyPlan && !canAccessSharedGroup) {
                 item {
                     LockedFamilyPlanCard(
                         onOpenSubscription = onOpenSubscription
@@ -275,26 +294,33 @@ fun FamilyScreen(
                         }
                     }
                 }
-                item {
-                    ManageFamilySection(
-                        groupedMembers = groupedManagedMembers,
-                        email = email,
-                        alias = alias,
-                        relationship = relationship,
-                        selectedGroup = selectedGroup,
-                        onEmailChange = { email = it },
-                        onAliasChange = { alias = it },
-                        onRelationshipChange = { relationship = it },
-                        onSelectedGroupChange = { selectedGroup = it },
-                        onAddMember = {
-                            onAddMember(email, alias, relationship, selectedGroup)
-                            email = ""
-                            alias = ""
-                            relationship = ""
-                            selectedGroup = GroupFamily
-                        },
-                        onRemoveMember = onRemoveMember
-                    )
+                if (canManageGroup) {
+                    item {
+                        ManageFamilySection(
+                            groupedMembers = groupedManagedMembers,
+                            email = email,
+                            alias = alias,
+                            relationship = relationship,
+                            selectedGroup = selectedGroup,
+                            onEmailChange = { email = it },
+                            onAliasChange = { alias = it },
+                            onRelationshipChange = { relationship = it },
+                            onSelectedGroupChange = { selectedGroup = it },
+                            onAddMember = {
+                                onAddMember(email, alias, relationship, selectedGroup)
+                                email = ""
+                                alias = ""
+                                relationship = ""
+                                selectedGroup = GroupFamily
+                            },
+                            onRemoveMember = onRemoveMember
+                        )
+                    }
+                }
+                if (isJoinedAsMember) {
+                    item {
+                        LeaveGroupCard(onLeaveGroup = onLeaveGroup)
+                    }
                 }
             }
         }
@@ -307,6 +333,107 @@ fun FamilyScreen(
                 onNavigate = { openMapsFor(member) },
                 onClose = { selectedMember = null }
             )
+        }
+    }
+}
+
+@Composable
+private fun InvitationSection(
+    invitations: List<FamilyInvitationResponse>,
+    onAcceptInvitation: (Long) -> Unit,
+    onRejectInvitation: (Long) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Invitaciones pendientes",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+            invitations.forEach { invitation ->
+                InvitationCard(
+                    invitation = invitation,
+                    onAccept = { onAcceptInvitation(invitation.id) },
+                    onReject = { onRejectInvitation(invitation.id) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InvitationCard(
+    invitation: FamilyInvitationResponse,
+    onAccept: () -> Unit,
+    onReject: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF7FAFE))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = invitation.ownerFullName,
+                style = MaterialTheme.typography.titleSmall,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Te invita al ${groupLabel(invitation.groupType)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = DeepOcean,
+                fontWeight = FontWeight.SemiBold
+            )
+            val detail = listOfNotNull(
+                invitation.alias?.takeIf { it.isNotBlank() }?.let { "Alias: $it" },
+                invitation.relationshipLabel?.takeIf { it.isNotBlank() }?.let { "Relacion: $it" }
+            ).joinToString("  ")
+            if (detail.isNotBlank()) {
+                Text(
+                    text = detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Button(
+                    onClick = onAccept,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = DeepOcean,
+                        contentColor = SurfaceCard
+                    )
+                ) {
+                    Text("Aceptar", fontWeight = FontWeight.SemiBold)
+                }
+                Button(
+                    onClick = onReject,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFFECEC),
+                        contentColor = Color(0xFFE05B5B)
+                    )
+                ) {
+                    Text("Rechazar", fontWeight = FontWeight.SemiBold)
+                }
+            }
         }
     }
 }
@@ -368,6 +495,48 @@ private fun LockedFamilyPlanCard(
                 Text(
                     text = "Ver Plan Familiar",
                     style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LeaveGroupCard(
+    onLeaveGroup: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF5F5))
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Salir del grupo",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Si ya no quieres compartir ubicacion con este grupo, puedes salir cuando quieras.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            Button(
+                onClick = onLeaveGroup,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFE05B5B),
+                    contentColor = SurfaceCard
+                )
+            ) {
+                Text(
+                    text = "Salir del grupo",
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -742,9 +911,9 @@ private fun ManageFamilySection(
                     containerColor = DeepOcean,
                     contentColor = SurfaceCard
                 )
-                ) {
-                    Text(
-                    text = "Agregar al grupo",
+            ) {
+                Text(
+                    text = "Enviar invitacion",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )

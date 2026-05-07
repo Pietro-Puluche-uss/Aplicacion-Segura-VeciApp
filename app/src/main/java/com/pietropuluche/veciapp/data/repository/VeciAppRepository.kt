@@ -8,6 +8,7 @@ import com.pietropuluche.veciapp.data.model.DashboardHomeResponse
 import com.pietropuluche.veciapp.data.model.EmergencyResponse
 import com.pietropuluche.veciapp.data.model.ErrorResponse
 import com.pietropuluche.veciapp.data.model.FamilyMapMemberResponse
+import com.pietropuluche.veciapp.data.model.FamilyInvitationResponse
 import com.pietropuluche.veciapp.data.model.FamilyMemberRequest
 import com.pietropuluche.veciapp.data.model.FamilyMemberResponse
 import com.pietropuluche.veciapp.data.model.HistoryItemResponse
@@ -108,12 +109,28 @@ class VeciAppRepository(
         apiService.getFamilyMembers()
     }
 
+    suspend fun getMyFamilyInvitations(): Result<List<FamilyInvitationResponse>> = runCatchingApi {
+        apiService.getMyFamilyInvitations()
+    }
+
     suspend fun addFamilyMember(request: FamilyMemberRequest): Result<FamilyMemberResponse> = runCatchingApi {
         apiService.addFamilyMember(request)
     }
 
+    suspend fun acceptFamilyInvitation(id: Long): Result<String> = runCatchingApi {
+        apiService.acceptFamilyInvitation(id).message
+    }
+
+    suspend fun rejectFamilyInvitation(id: Long): Result<String> = runCatchingApi {
+        apiService.rejectFamilyInvitation(id).message
+    }
+
     suspend fun removeFamilyMember(id: Long): Result<String> = runCatchingApi {
         apiService.removeFamilyMember(id).message
+    }
+
+    suspend fun leaveFamilyGroup(): Result<String> = runCatchingApi {
+        apiService.leaveFamilyGroup().message
     }
 
     suspend fun getFamilyMap(): Result<List<FamilyMapMemberResponse>> = runCatchingApi {

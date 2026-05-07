@@ -277,9 +277,11 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Route.Family.value) {
                             FamilyScreen(
+                                currentUserId = appState.profile?.userId,
                                 currentPlan = appState.subscription?.currentPlan ?: appState.profile?.subscriptionPlan,
                                 familyMembers = appState.familyMembers,
                                 familyMap = appState.familyMap,
+                                invitations = appState.familyInvitations,
                                 successMessage = appState.successMessage,
                                 errorMessage = appState.errorMessage,
                                 onRefresh = { veciAppViewModel.refreshFamily() },
@@ -288,6 +290,15 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onRemoveMember = { id ->
                                     veciAppViewModel.removeFamilyMember(id)
+                                },
+                                onAcceptInvitation = { id ->
+                                    veciAppViewModel.acceptFamilyInvitation(id)
+                                },
+                                onRejectInvitation = { id ->
+                                    veciAppViewModel.rejectFamilyInvitation(id)
+                                },
+                                onLeaveGroup = {
+                                    veciAppViewModel.leaveFamilyGroup()
                                 },
                                 onOpenSubscription = { navController.navigate(Route.Subscription.value) },
                                 onClose = {

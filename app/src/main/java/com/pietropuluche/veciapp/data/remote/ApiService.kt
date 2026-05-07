@@ -7,6 +7,7 @@ import com.pietropuluche.veciapp.data.model.CreateIncidentReportRequest
 import com.pietropuluche.veciapp.data.model.DashboardHomeResponse
 import com.pietropuluche.veciapp.data.model.EmergencyResponse
 import com.pietropuluche.veciapp.data.model.FamilyMapMemberResponse
+import com.pietropuluche.veciapp.data.model.FamilyInvitationResponse
 import com.pietropuluche.veciapp.data.model.FamilyMemberRequest
 import com.pietropuluche.veciapp.data.model.FamilyMemberResponse
 import com.pietropuluche.veciapp.data.model.HistoryItemResponse
@@ -89,11 +90,23 @@ interface ApiService {
     @GET("api/family/members")
     suspend fun getFamilyMembers(): List<FamilyMemberResponse>
 
+    @GET("api/family/invitations/mine")
+    suspend fun getMyFamilyInvitations(): List<FamilyInvitationResponse>
+
     @POST("api/family/members")
     suspend fun addFamilyMember(@Body request: FamilyMemberRequest): FamilyMemberResponse
 
+    @POST("api/family/invitations/{id}/accept")
+    suspend fun acceptFamilyInvitation(@Path("id") id: Long): ApiMessageResponse
+
+    @POST("api/family/invitations/{id}/reject")
+    suspend fun rejectFamilyInvitation(@Path("id") id: Long): ApiMessageResponse
+
     @DELETE("api/family/members/{id}")
     suspend fun removeFamilyMember(@Path("id") id: Long): ApiMessageResponse
+
+    @DELETE("api/family/members/me")
+    suspend fun leaveFamilyGroup(): ApiMessageResponse
 
     @GET("api/family/map")
     suspend fun getFamilyMap(): List<FamilyMapMemberResponse>

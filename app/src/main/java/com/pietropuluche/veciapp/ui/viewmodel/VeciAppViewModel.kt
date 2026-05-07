@@ -7,6 +7,7 @@ import com.pietropuluche.veciapp.data.model.CreateIncidentReportRequest
 import com.pietropuluche.veciapp.data.model.DashboardHomeResponse
 import com.pietropuluche.veciapp.data.model.EmergencyResponse
 import com.pietropuluche.veciapp.data.model.FamilyMapMemberResponse
+import com.pietropuluche.veciapp.data.model.FamilyInvitationResponse
 import com.pietropuluche.veciapp.data.model.FamilyMemberRequest
 import com.pietropuluche.veciapp.data.model.FamilyMemberResponse
 import com.pietropuluche.veciapp.data.model.HistoryItemResponse
@@ -40,6 +41,7 @@ data class VeciAppUiState(
     val subscription: UserSubscriptionResponse? = null,
     val familyMembers: List<FamilyMemberResponse> = emptyList(),
     val familyMap: List<FamilyMapMemberResponse> = emptyList(),
+    val familyInvitations: List<FamilyInvitationResponse> = emptyList(),
     val pendingEmergencyConfirmation: EmergencyResponse? = null,
     val successMessage: String = "",
     val errorMessage: String = ""
@@ -71,6 +73,7 @@ class VeciAppViewModel(
             val emergenciesDeferred = async { repository.getMyEmergencies() }
             val membersDeferred = async { repository.getFamilyMembers() }
             val familyMapDeferred = async { repository.getFamilyMap() }
+            val invitationsDeferred = async { repository.getMyFamilyInvitations() }
 
             val profileResult = profileDeferred.await()
             val dashboardResult = dashboardDeferred.await()
@@ -82,6 +85,7 @@ class VeciAppViewModel(
             val emergenciesResult = emergenciesDeferred.await()
             val membersResult = membersDeferred.await()
             val familyMapResult = familyMapDeferred.await()
+            val invitationsResult = invitationsDeferred.await()
 
             _uiState.value = _uiState.value.copy(
                 isLoading = false,
@@ -97,6 +101,7 @@ class VeciAppViewModel(
                 isHistoryDetailLoading = currentState.isHistoryDetailLoading,
                 familyMembers = membersResult.getOrElse { currentState.familyMembers },
                 familyMap = familyMapResult.getOrElse { currentState.familyMap },
+                familyInvitations = invitationsResult.getOrElse { currentState.familyInvitations },
                 pendingEmergencyConfirmation = currentState.pendingEmergencyConfirmation,
                 errorMessage = listOf(
                     profileResult.exceptionOrNull()?.message,
@@ -108,7 +113,8 @@ class VeciAppViewModel(
                     reportsResult.exceptionOrNull()?.message,
                     emergenciesResult.exceptionOrNull()?.message,
                     membersResult.exceptionOrNull()?.message,
-                    familyMapResult.exceptionOrNull()?.message
+                    familyMapResult.exceptionOrNull()?.message,
+                    invitationsResult.exceptionOrNull()?.message
                 ).firstOrNull { !it.isNullOrBlank() }.orEmpty()
             )
         }
@@ -220,11 +226,14 @@ class VeciAppViewModel(
         viewModelScope.launch {
             val membersResult = repository.getFamilyMembers()
             val mapResult = repository.getFamilyMap()
+            val invitationsResult = repository.getMyFamilyInvitations()
             _uiState.value = _uiState.value.copy(
                 familyMembers = membersResult.getOrDefault(emptyList()),
                 familyMap = mapResult.getOrDefault(emptyList()),
+                familyInvitations = invitationsResult.getOrDefault(emptyList()),
                 errorMessage = membersResult.exceptionOrNull()?.message
                     ?: mapResult.exceptionOrNull()?.message
+                    ?: invitationsResult.exceptionOrNull()?.message
                     ?: ""
             )
         }
@@ -356,7 +365,7 @@ class VeciAppViewModel(
                     groupType = groupType.trim().ifBlank { "FAMILY" }
                 )
             ).onSuccess {
-                _uiState.value = _uiState.value.copy(successMessage = "Miembro agregado", errorMessage = "")
+                _uiState.value = _uiState.value.copy(successMessage = "Invitacion enviada", errorMessage = "")
                 refreshFamily()
             }.onFailure { error ->
                 showError(error.message.orEmpty())
@@ -367,6 +376,42 @@ class VeciAppViewModel(
     fun removeFamilyMember(id: Long) {
         viewModelScope.launch {
             repository.removeFamilyMember(id)
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(successMessage = it, errorMessage = "")
+                    refreshFamily()
+                }.onFailure { error ->
+                    showError(error.message.orEmpty())
+                }
+        }
+    }
+
+    fun acceptFamilyInvitation(id: Long) {
+        viewModelScope.launch {
+            repository.acceptFamilyInvitation(id)
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(successMessage = it, errorMessage = "")
+                    refreshFamily()
+                }.onFailure { error ->
+                    showError(error.message.orEmpty())
+                }
+        }
+    }
+
+    fun rejectFamilyInvitation(id: Long) {
+        viewModelScope.launch {
+            repository.rejectFamilyInvitation(id)
+                .onSuccess {
+                    _uiState.value = _uiState.value.copy(successMessage = it, errorMessage = "")
+                    refreshFamily()
+                }.onFailure { error ->
+                    showError(error.message.orEmpty())
+                }
+        }
+    }
+
+    fun leaveFamilyGroup() {
+        viewModelScope.launch {
+            repository.leaveFamilyGroup()
                 .onSuccess {
                     _uiState.value = _uiState.value.copy(successMessage = it, errorMessage = "")
                     refreshFamily()
