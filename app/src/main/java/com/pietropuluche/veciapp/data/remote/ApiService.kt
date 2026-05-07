@@ -109,6 +109,12 @@ interface ApiService {
     @POST("api/family/alerts/{id}/read")
     suspend fun markFamilyAlertRead(@Path("id") id: Long): ApiMessageResponse
 
+    @DELETE("api/family/alerts/{id}")
+    suspend fun deleteFamilyAlert(@Path("id") id: Long): ApiMessageResponse
+
+    @DELETE("api/family/alerts")
+    suspend fun clearFamilyAlerts(): ApiMessageResponse
+
     @DELETE("api/family/members/{id}")
     suspend fun removeFamilyMember(@Path("id") id: Long): ApiMessageResponse
 

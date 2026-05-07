@@ -320,6 +320,12 @@ class MainActivity : ComponentActivity() {
                                 onLeaveGroup = {
                                     veciAppViewModel.leaveFamilyGroup()
                                 },
+                                onDeleteAlert = { id ->
+                                    veciAppViewModel.deleteFamilyAlert(id)
+                                },
+                                onClearAlerts = {
+                                    veciAppViewModel.clearFamilyAlerts()
+                                },
                                 onOpenSubscription = { navController.navigate(Route.Subscription.value) },
                                 onClose = {
                                     navController.navigate(Route.Home.value) {

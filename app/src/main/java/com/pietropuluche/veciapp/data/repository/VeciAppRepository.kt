@@ -134,6 +134,14 @@ class VeciAppRepository(
         apiService.markFamilyAlertRead(id).message
     }
 
+    suspend fun deleteFamilyAlert(id: Long): Result<String> = runCatchingApi {
+        apiService.deleteFamilyAlert(id).message
+    }
+
+    suspend fun clearFamilyAlerts(): Result<String> = runCatchingApi {
+        apiService.clearFamilyAlerts().message
+    }
+
     suspend fun removeFamilyMember(id: Long): Result<String> = runCatchingApi {
         apiService.removeFamilyMember(id).message
     }

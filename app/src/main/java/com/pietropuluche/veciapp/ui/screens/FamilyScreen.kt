@@ -126,6 +126,8 @@ fun FamilyScreen(
     onAcceptInvitation: (Long) -> Unit,
     onRejectInvitation: (Long) -> Unit,
     onLeaveGroup: () -> Unit,
+    onDeleteAlert: (Long) -> Unit,
+    onClearAlerts: () -> Unit,
     onOpenSubscription: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -145,11 +147,49 @@ fun FamilyScreen(
     val canAccessSharedGroup = familyMap.isNotEmpty()
     val canManageGroup = isFamilyPlan && ownerMember?.userId == currentUserId
     val isJoinedAsMember = canAccessSharedGroup && ownerMember?.userId != currentUserId
+    val joinedGroupType = remember(familyMembers, currentUserId) {
+        familyMembers.firstOrNull { it.memberUserId == currentUserId }
+            ?.groupType
+            ?.let(::normalizeGroupType)
+    }
+    val availableMapGroups = remember(canManageGroup, joinedGroupType, groupedMapMembers) {
+        when {
+            canManageGroup -> listOf(GroupFamily, GroupOther)
+            joinedGroupType != null -> listOf(joinedGroupType)
+            groupedMapMembers[GroupOther].isNullOrEmpty().not() -> listOf(GroupOther)
+            else -> listOf(GroupFamily)
+        }
+    }
     var selectedMember by remember { mutableStateOf<FamilyUiMember?>(null) }
     var email by rememberSaveable { mutableStateOf("") }
     var alias by rememberSaveable { mutableStateOf("") }
     var relationship by rememberSaveable { mutableStateOf("") }
     var selectedGroup by rememberSaveable { mutableStateOf(GroupFamily) }
+    var activeMapGroup by rememberSaveable { mutableStateOf(availableMapGroups.firstOrNull() ?: GroupFamily) }
+
+    LaunchedEffect(availableMapGroups) {
+        if (activeMapGroup !in availableMapGroups) {
+            activeMapGroup = availableMapGroups.firstOrNull() ?: GroupFamily
+        }
+    }
+
+    LaunchedEffect(activeMapGroup) {
+        selectedMember?.let { current ->
+            if (normalizeGroupType(current.groupType) != activeMapGroup) {
+                selectedMember = null
+            }
+        }
+    }
+
+    val visibleGroupMembers = remember(groupedMapMembers, activeMapGroup) {
+        groupedMapMembers[activeMapGroup].orEmpty()
+    }
+    val visibleMapMembers = remember(ownerMember, visibleGroupMembers) {
+        listOfNotNull(ownerMember) + visibleGroupMembers
+    }
+    val visibleAlerts = remember(emergencyAlerts, activeMapGroup) {
+        emergencyAlerts.filter { normalizeGroupType(it.groupType) == activeMapGroup }
+    }
 
     fun openMapsFor(member: FamilyUiMember?) {
         val lat = member?.latitude ?: ownerMember?.latitude ?: return
@@ -209,7 +249,11 @@ fun FamilyScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "${familyCards.size} miembros",
+                            text = if (familyCards.isEmpty()) {
+                                "0 miembros"
+                            } else {
+                                "${visibleGroupMembers.size} visibles de ${familyCards.size}"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
@@ -241,11 +285,14 @@ fun FamilyScreen(
                 }
             }
 
-            if (emergencyAlerts.isNotEmpty()) {
+            if (visibleAlerts.isNotEmpty()) {
                 item {
                     EmergencyAlertSection(
-                        alerts = emergencyAlerts,
-                        onOpenMaps = { openMapsForAlert(it) }
+                        groupType = activeMapGroup,
+                        alerts = visibleAlerts,
+                        onOpenMaps = { openMapsForAlert(it) },
+                        onDeleteAlert = onDeleteAlert,
+                        onClearAlerts = onClearAlerts
                     )
                 }
             }
@@ -281,8 +328,15 @@ fun FamilyScreen(
                     }
                 }
                 item {
+                    MapGroupSection(
+                        availableGroups = availableMapGroups,
+                        selectedGroup = activeMapGroup,
+                        onSelectedGroupChange = { activeMapGroup = it }
+                    )
+                }
+                item {
                     FamilyMapPanel(
-                        members = uiMembers,
+                        members = visibleMapMembers,
                         onMemberClick = { member ->
                             if (!member.isOwner) {
                                 selectedMember = member
@@ -292,7 +346,7 @@ fun FamilyScreen(
                 }
                 item {
                     Text(
-                        text = "Miembros vinculados",
+                        text = "Miembros visibles en este mapa",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                         fontWeight = FontWeight.SemiBold
@@ -302,15 +356,12 @@ fun FamilyScreen(
                     if (familyCards.isEmpty()) {
                         EmptyState("Aun no has vinculado familiares a tu plan.")
                     } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        if (visibleGroupMembers.isEmpty()) {
+                            EmptyState("En ${groupLabel(activeMapGroup).lowercase()} aun no hay integrantes aceptados.")
+                        } else {
                             GroupedMemberChipsSection(
-                                title = "Grupo Familia",
-                                members = groupedMapMembers[GroupFamily].orEmpty(),
-                                onSelectMember = { selectedMember = it }
-                            )
-                            GroupedMemberChipsSection(
-                                title = "Grupo Otro",
-                                members = groupedMapMembers[GroupOther].orEmpty(),
+                                title = groupLabel(activeMapGroup),
+                                members = visibleGroupMembers,
                                 onSelectMember = { selectedMember = it }
                             )
                         }
@@ -361,8 +412,63 @@ fun FamilyScreen(
 
 @Composable
 private fun EmergencyAlertSection(
+    groupType: String,
     alerts: List<FamilyEmergencyAlertResponse>,
-    onOpenMaps: (FamilyEmergencyAlertResponse) -> Unit
+    onOpenMaps: (FamilyEmergencyAlertResponse) -> Unit,
+    onDeleteAlert: (Long) -> Unit,
+    onClearAlerts: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Alertas de ${groupLabel(groupType)}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Se eliminan solas a los 7 dias o puedes borrarlas aqui.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+                Text(
+                    text = "Borrar todo",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFFE05B5B),
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable(onClick = onClearAlerts)
+                )
+            }
+            alerts.take(5).forEach { alert ->
+                EmergencyAlertCard(
+                    alert = alert,
+                    onOpenMaps = { onOpenMaps(alert) },
+                    onDelete = { onDeleteAlert(alert.id) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MapGroupSection(
+    availableGroups: List<String>,
+    selectedGroup: String,
+    onSelectedGroupChange: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -374,16 +480,31 @@ private fun EmergencyAlertSection(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Alertas del grupo",
+                text = "Vista del mapa",
                 style = MaterialTheme.typography.titleMedium,
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold
             )
-            alerts.take(5).forEach { alert ->
-                EmergencyAlertCard(
-                    alert = alert,
-                    onOpenMaps = { onOpenMaps(alert) }
+            if (availableGroups.size == 1) {
+                Text(
+                    text = "Mostrando ${groupLabel(selectedGroup).lowercase()}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
                 )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    availableGroups.forEach { groupType ->
+                        GroupOptionCard(
+                            title = if (groupType == GroupOther) "Otro" else "Familia",
+                            selected = normalizeGroupType(selectedGroup) == groupType,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onSelectedGroupChange(groupType) }
+                        )
+                    }
+                }
             }
         }
     }
@@ -392,7 +513,8 @@ private fun EmergencyAlertSection(
 @Composable
 private fun EmergencyAlertCard(
     alert: FamilyEmergencyAlertResponse,
-    onOpenMaps: () -> Unit
+    onOpenMaps: () -> Unit,
+    onDelete: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -403,12 +525,26 @@ private fun EmergencyAlertCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = "Alerta de ${alert.senderFullName}",
-                style = MaterialTheme.typography.titleSmall,
-                color = TextPrimary,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Text(
+                    text = "Alerta de ${alert.senderFullName}",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "Borrar",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFE05B5B),
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable(onClick = onDelete)
+                )
+            }
             Text(
                 text = groupLabel(alert.groupType),
                 style = MaterialTheme.typography.bodySmall,

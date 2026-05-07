@@ -437,6 +437,32 @@ class VeciAppViewModel(
         }
     }
 
+    fun deleteFamilyAlert(id: Long) {
+        viewModelScope.launch {
+            repository.deleteFamilyAlert(id)
+                .onSuccess {
+                    announcedFamilyAlertIds.remove(id)
+                    _uiState.value = _uiState.value.copy(successMessage = it, errorMessage = "")
+                    refreshFamily()
+                }.onFailure { error ->
+                    showError(error.message.orEmpty())
+                }
+        }
+    }
+
+    fun clearFamilyAlerts() {
+        viewModelScope.launch {
+            repository.clearFamilyAlerts()
+                .onSuccess {
+                    announcedFamilyAlertIds.clear()
+                    _uiState.value = _uiState.value.copy(successMessage = it, errorMessage = "")
+                    refreshFamily()
+                }.onFailure { error ->
+                    showError(error.message.orEmpty())
+                }
+        }
+    }
+
     fun clearMessages() {
         _uiState.value = _uiState.value.copy(successMessage = "", errorMessage = "")
     }
